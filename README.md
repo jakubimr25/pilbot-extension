@@ -114,6 +114,10 @@ then:
 zip -X pilbot-1.0.0.zip manifest.json LICENSE THIRD-PARTY-NOTICES.txt *.js *.html styles.css icons/*.png
 ```
 
+## Made with AI
+
+AI tools were used to build this project, including writing its code and documentation.
+
 ## License
 
 Pilbot is free for **personal, non-commercial use** under the [Pilbot License](LICENSE): you may use it and share
