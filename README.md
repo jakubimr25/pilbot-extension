@@ -28,6 +28,10 @@
 - **AI language** – the language answers and dictation use, or Automatic.
 - A Material 3 side panel in light and dark, following Chrome or your choice.
 
+## Made with AI
+
+AI tools were used to build this project, including writing its code and documentation.
+
 ## Supported providers
 
 Pilbot works with any OpenAI-compatible API. Setup offers these presets:
@@ -113,10 +117,6 @@ then:
 ```bash
 zip -X pilbot-1.0.0.zip manifest.json LICENSE THIRD-PARTY-NOTICES.txt *.js *.html styles.css icons/*.png
 ```
-
-## Made with AI
-
-AI tools were used to build this project, including writing its code and documentation.
 
 ## License
 
