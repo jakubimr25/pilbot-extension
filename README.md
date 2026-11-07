@@ -15,6 +15,10 @@
   <a href="LICENSE">License</a>
 </p>
 
+## Made with AI
+
+AI tools were used to build this project, including writing its code and documentation.
+
 ## Features
 
 - **Ask** – select a question on any page (two words or more) and click the speech-bubble button next to it, or
@@ -27,10 +31,6 @@
   sent with every question while it's switched on.
 - **AI language** – the language answers and dictation use, or Automatic.
 - A Material 3 side panel in light and dark, following Chrome or your choice.
-
-## Made with AI
-
-AI tools were used to build this project, including writing its code and documentation.
 
 ## Supported providers
 
