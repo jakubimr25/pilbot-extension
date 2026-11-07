@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Pilbot</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="sidepanel.js"></script>
+  </head>
+  <body>
+    <!-- Icons are inline SVG copies of Material Symbols, so nothing is loaded from the network.
+         sidepanel.js sets data-setup on <body>: "required" (no provider yet) and "editing" show only
+         the provider setup, "ready" everything else (styles.css); nothing shows until the provider
+         is read. -->
+
+    <!-- Provider setup: a Material 3 onboarding flow in three steps (provider, connection, models).
+         It is the first screen until a provider is set up, and the editor opened from settings. The
+         API key typed here goes to the background worker only (PROVIDER_CHECK, PROVIDER_SAVE), which
+         encrypts it; it is never shown or read back. -->
+    <section id="setup" class="setup" aria-labelledby="setup-title">
+      <!-- Material 3 small top app bar: the logo while setting up, a close button while editing. -->
+      <header class="setup-bar">
+        <svg class="setup-bar-logo" viewBox="0 0 90 67" aria-hidden="true">
+          <rect class="setup-logo-back" width="89.9255" height="66.0391" rx="33.0195" />
+          <path
+            class="setup-logo-face"
+            d="M55.8809 4C71.7889 4.00016 84.6846 16.8966 84.6846 32.8047C84.6843 48.7126 71.7887 61.6082 55.8809 61.6084H34.8047C18.8967 61.6084 6.00022 48.7127 6 32.8047C6 16.8965 18.8965 4 34.8047 4H55.8809ZM53.8828 15.7891C48.6361 15.7891 44.3828 20.0424 44.3828 25.2891V30.2891C44.3828 35.5358 48.6361 39.7891 53.8828 39.7891C59.1295 39.7891 63.3828 35.5358 63.3828 30.2891V25.2891C63.3828 20.0424 59.1295 15.7891 53.8828 15.7891ZM27.8828 14.7891C22.6361 14.7891 18.3828 19.0424 18.3828 24.2891V29.2891C18.3828 34.5358 22.6361 38.7891 27.8828 38.7891C33.1295 38.7891 37.3828 34.5358 37.3828 29.2891V24.2891C37.3828 19.0424 33.1295 14.7891 27.8828 14.7891Z"
+          />
+        </svg>
+        <button type="button" id="setup-close" class="icon-button" aria-label="Close" title="Close">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+        <h1 id="setup-title" class="setup-bar-title">Set up Pilbot</h1>
+      </header>
+
+      <!-- Material 3 determinate linear progress indicator: active part, gap, track. -->
+      <div
+        id="setup-progress"
+        class="linear-progress"
+        role="progressbar"
+        aria-label="Setup progress"
+        aria-valuemin="1"
+        aria-valuemax="3"
+        aria-valuenow="1"
+      >
+        <span class="linear-progress-active"></span>
+        <span class="linear-progress-track"></span>
+      </div>
+
+      <!-- Submitted by sidepanel.js only (form-action 'none' in the CSP blocks a real submit). -->
+      <form id="provider-form" class="setup-form" novalidate autocomplete="off">
+        <div id="setup-scroll" class="setup-scroll">
+          <!-- Step 1: the provider. Radio list items rendered from PROVIDER_PRESETS (constants.js). -->
+          <section id="setup-step-provider" class="setup-step" aria-labelledby="step-provider-title">
+            <p class="setup-eyebrow">Step 1 of 3</p>
+            <h2 id="step-provider-title" class="setup-headline">Choose your AI provider</h2>
+            <p class="setup-supporting">
+              Pilbot sends your questions straight to the provider, with your own API key. There is no Pilbot
+              account.
+            </p>
+            <div id="provider-choices" class="choice-groups" role="radiogroup" aria-labelledby="step-provider-title"></div>
+          </section>
+
+          <!-- Step 2: the connection. The endpoint field only for Custom and servers on this computer;
+               for the others, the endpoint is shown read-only. -->
+          <section id="setup-step-connect" class="setup-step" aria-labelledby="step-connect-title" hidden>
+            <p class="setup-eyebrow">Step 2 of 3</p>
+            <h2 id="step-connect-title" class="setup-headline">Connect to Groq</h2>
+            <p id="step-connect-text" class="setup-supporting">Paste an API key from your Groq account.</p>
+
+            <!-- The fixed endpoint of a known provider: shown like the fields below (label above, the
+                 same container), but read-only text, not an input. -->
+            <div id="endpoint-info" class="text-field text-field-readonly">
+              <span id="endpoint-info-label" class="text-field-label">Endpoint</span>
+              <div class="text-field-box">
+                <svg class="icon text-field-leading" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
+                  />
+                </svg>
+                <span id="endpoint-info-value" class="text-field-value"></span>
+              </div>
+            </div>
+
+            <div id="endpoint-field" class="text-field">
+              <label for="provider-endpoint" class="text-field-label">Endpoint</label>
+              <div class="text-field-box">
+                <svg class="icon text-field-leading" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+                </svg>
+                <input
+                  type="url"
+                  id="provider-endpoint"
+                  class="text-field-input"
+                  inputmode="url"
+                  placeholder="https://api.example.com/v1"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-describedby="provider-endpoint-support"
+                />
+              </div>
+              <p id="provider-endpoint-support" class="text-field-supporting"></p>
+            </div>
+
+            <div id="key-field" class="text-field">
+              <label for="provider-key" id="provider-key-label" class="text-field-label">API key</label>
+              <div class="text-field-box">
+                <svg class="icon text-field-leading" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 10h-8.35C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H13l2 2 2-2 2 2 4-4.04L21 10zM7 15c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z" />
+                </svg>
+                <input
+                  type="password"
+                  id="provider-key"
+                  class="text-field-input"
+                  placeholder="Paste your API key"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-describedby="provider-key-support"
+                />
+                <button
+                  type="button"
+                  id="provider-key-toggle"
+                  class="icon-button text-field-trailing"
+                  aria-pressed="false"
+                  aria-label="Show the API key"
+                  title="Show the API key"
+                >
+                  <svg class="icon icon-show" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                    />
+                  </svg>
+                  <svg class="icon icon-hide" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78 3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p id="provider-key-support" class="text-field-supporting"></p>
+            </div>
+
+            <div class="setup-links">
+              <!-- Points only to a fixed address from PROVIDER_PRESETS, never to anything typed. -->
+              <a id="provider-key-link" class="button text" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">
+                <span id="provider-key-link-label">Get a Groq API key</span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
+                  />
+                </svg>
+              </a>
+              <button type="button" id="provider-remove" class="button text danger" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z" />
+                </svg>
+                Remove saved key
+              </button>
+            </div>
+          </section>
+
+          <!-- Step 3: the models, typed as their IDs (the provider's suggested ones are filled in). -->
+          <section id="setup-step-models" class="setup-step" aria-labelledby="step-models-title" hidden>
+            <p class="setup-eyebrow">Step 3 of 3</p>
+            <h2 id="step-models-title" class="setup-headline" tabindex="-1">Choose models</h2>
+            <p id="step-models-text" class="setup-supporting"></p>
+
+            <div id="chat-model-field" class="text-field">
+              <label for="provider-chat-model" class="text-field-label">Chat model</label>
+              <div class="text-field-box">
+                <svg class="icon text-field-leading" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" />
+                </svg>
+                <input
+                  type="text"
+                  id="provider-chat-model"
+                  class="text-field-input"
+                  placeholder="Model ID"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-describedby="chat-model-support"
+                />
+              </div>
+              <p id="chat-model-support" class="text-field-supporting"></p>
+            </div>
+
+            <div id="transcription-model-field" class="text-field">
+              <label for="provider-transcription-model" class="text-field-label">Speech-to-text model (optional)</label>
+              <div class="text-field-box">
+                <svg class="icon text-field-leading" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                </svg>
+                <input
+                  type="text"
+                  id="provider-transcription-model"
+                  class="text-field-input"
+                  placeholder="None: Voice stays off"
+                  spellcheck="false"
+                  autocomplete="off"
+                  aria-describedby="transcription-model-support"
+                />
+              </div>
+              <p id="transcription-model-support" class="text-field-supporting"></p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Errors that belong to no field (the extension could not be reached, a timeout). -->
+        <p id="provider-status" class="setup-status" role="status" aria-live="polite"></p>
+
+        <div class="setup-actions">
+          <button type="button" id="setup-back" class="button text">Back</button>
+          <button type="submit" id="setup-next" class="button filled">Next</button>
+        </div>
+      </form>
+    </section>
+
+    <header class="top">
+      <div class="app-bar">
+        <h1 class="greeting"><span class="greeting-name">Extension panel</span></h1>
+        <label class="switch" title="Enable Pilbot">
+          <input type="checkbox" id="enabled" role="switch" />
+          <span class="track" aria-hidden="true"></span>
+          <span class="visually-hidden">Enable Pilbot</span>
+        </label>
+      </div>
+
+      <!-- Picks the view below (values match the view-… section IDs). Same
+           connected button group as the theme picker. -->
+      <nav class="menu" aria-label="Menu">
+        <div id="menu" class="segmented">
+          <label class="segment" title="Ask">
+            <input type="radio" name="view" value="ask" checked />
+            <span class="segment-face">
+              <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" />
+              </svg>
+              <span class="visually-hidden">Ask</span>
+            </span>
+          </label>
+          <label class="segment" title="Knowledge">
+            <input type="radio" name="view" value="knowledge" />
+            <span class="segment-face">
+              <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"
+                />
+              </svg>
+              <span class="visually-hidden">Knowledge</span>
+            </span>
+          </label>
+          <label class="segment" title="Voice">
+            <input type="radio" name="view" value="voice" />
+            <span class="segment-face">
+              <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+                />
+              </svg>
+              <span class="visually-hidden">Voice</span>
+            </span>
+          </label>
+          <label class="segment" title="Summary">
+            <input type="radio" name="view" value="summary" />
+            <span class="segment-face">
+              <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M3 10h11v2H3v-2zm0-2h11V6H3v2zm0 8h7v-2H3v2zm15.01-3.13.71-.71a.996.996 0 0 1 1.41 0l.71.71c.39.39.39 1.02 0 1.41l-.71.71-2.12-2.12zm-.71.71-5.3 5.3V21h2.12l5.3-5.3-2.12-2.12z"
+                />
+              </svg>
+              <span class="visually-hidden">Summary</span>
+            </span>
+          </label>
+        </div>
+      </nav>
+    </header>
+
+    <main class="content">
+      <!-- The Ask bar next to selected text on pages (content.js); on until switched off here. -->
+      <section id="view-ask" class="view feature ask">
+        <div class="section-head">
+          <h2 class="section-title">Ask</h2>
+          <label class="switch" title="Ask button on pages">
+            <input type="checkbox" id="ask-enabled" role="switch" />
+            <span class="track" aria-hidden="true"></span>
+            <span class="visually-hidden">Ask button on pages</span>
+          </label>
+        </div>
+
+        <!-- What the switch does; styles.css shows the part for its state. -->
+        <div class="empty ask-state">
+          <span class="empty-icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" />
+            </svg>
+          </span>
+          <p class="empty-title ask-on">Ask is on</p>
+          <p class="empty-hint ask-on">Select a question on a page and click the Ask icon next to it.</p>
+          <p class="empty-title ask-off">Ask is off</p>
+          <p class="empty-hint ask-off">Switch it on to get the Ask button next to selected text.</p>
+        </div>
+      </section>
+
+      <!-- Text sent with every question (stored as the reference text, see constants.js). -->
+      <section id="view-knowledge" class="view feature knowledge" hidden>
+        <div class="section-head">
+          <h2 id="knowledge-title" class="section-title">Knowledge</h2>
+          <label class="switch" title="Send knowledge with questions">
+            <input type="checkbox" id="knowledge-enabled" role="switch" />
+            <span class="track" aria-hidden="true"></span>
+            <span class="visually-hidden">Send knowledge with questions</span>
+          </label>
+        </div>
+
+        <textarea
+          id="knowledge-text"
+          class="knowledge-input"
+          aria-labelledby="knowledge-title"
+          placeholder="Paste your notes or study materials here..."
+          autocomplete="off"
+        ></textarea>
+        <div class="knowledge-footer">
+          <span id="knowledge-status"></span>
+          <span id="knowledge-count" class="knowledge-count"></span>
+        </div>
+      </section>
+
+      <!-- Dictation into text fields on pages (content.js); off until switched on here. -->
+      <section id="view-voice" class="view feature" hidden>
+        <div class="section-head">
+          <h2 class="section-title">Voice</h2>
+          <label class="switch" title="Dictation in text fields">
+            <input type="checkbox" id="dictation-enabled" role="switch" />
+            <span class="track" aria-hidden="true"></span>
+            <span class="visually-hidden">Dictation in text fields</span>
+          </label>
+        </div>
+
+        <div class="mic">
+          <span class="mic-icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path
+                d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+              />
+            </svg>
+          </span>
+          <span class="mic-text">
+            <span class="mic-title">Microphone</span>
+            <span id="mic-status" class="mic-status" aria-live="polite"></span>
+          </span>
+          <button type="button" id="mic-allow" class="button tonal" hidden>Allow</button>
+        </div>
+
+        <!-- Shown when the provider has no speech-to-text model (sidepanel.js). -->
+        <p id="voice-model-note" class="view-note" hidden>
+          Your provider has no speech-to-text model set, so dictation cannot work yet. Add one in Settings → Edit
+          provider → Models.
+        </p>
+      </section>
+
+      <!-- The Summarize bar at the top of pages (content.js); on until switched off here. -->
+      <section id="view-summary" class="view feature summary" hidden>
+        <div class="section-head">
+          <h2 class="section-title">Summary</h2>
+          <label class="switch" title="Summarize bar on pages">
+            <input type="checkbox" id="summary-enabled" role="switch" />
+            <span class="track" aria-hidden="true"></span>
+            <span class="visually-hidden">Summarize bar on pages</span>
+          </label>
+        </div>
+
+        <!-- What the switch does; styles.css shows the part for its state. -->
+        <div class="empty summary-state">
+          <span class="empty-icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path
+                d="M3 10h11v2H3v-2zm0-2h11V6H3v2zm0 8h7v-2H3v2zm15.01-3.13.71-.71a.996.996 0 0 1 1.41 0l.71.71c.39.39.39 1.02 0 1.41l-.71.71-2.12-2.12zm-.71.71-5.3 5.3V21h2.12l5.3-5.3-2.12-2.12z"
+              />
+            </svg>
+          </span>
+          <p class="empty-title summary-on">Summaries are on</p>
+          <p class="empty-hint summary-on">Open a page with text and click the summary icon in the bar at the top.</p>
+          <p class="empty-title summary-off">Summaries are off</p>
+          <p class="empty-hint summary-off">Switch them on to get the summary bar on pages.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Reset (removes the provider and its key after the dialog below confirms, then the setup
+         starts again), then help and settings. -->
+    <footer class="account">
+      <button
+        type="button"
+        id="reset"
+        class="reset-button"
+        title="Reset: remove the API key and set up again"
+        aria-label="Reset: remove the API key and set up again"
+        aria-haspopup="dialog"
+      >
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 2.97-2.17 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8zm-6 8c0-1.65.67-3.15 1.76-4.24L6.34 7.34C4.9 8.79 4 10.79 4 13c0 4.08 3.05 7.44 7 7.93v-2.02c-2.83-.48-5-2.94-5-5.91z"
+          />
+        </svg>
+      </button>
+      <!-- Help and settings: a connected button group like the menu; each opens a popup above it. -->
+      <div id="footer-actions" class="segmented footer-actions">
+        <button type="button" id="help" class="segment-face" popovertarget="help-popover" title="Help" aria-label="Help">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"
+            />
+          </svg>
+        </button>
+        <button type="button" id="settings" class="segment-face" popovertarget="settings-popover" title="Settings" aria-label="Settings">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1a.5.5 0 0 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Help popup: sidepanel.js shows the part for the view picked in the menu (IDs help-…). -->
+      <div id="help-popover" class="popover help-popover" popover>
+        <section id="help-ask" class="help">
+          <h2 class="popover-title">Ask</h2>
+          <p>
+            Select a question on any page and click Ask (the speech bubble) next to it, or press Alt+Shift+Q: a
+            short answer shows in the bottom-left corner. × hides the button for that selection.
+          </p>
+          <p>
+            Only the selected text is sent, straight to your AI provider, with your Knowledge text while its switch
+            is on. Text in fields, single words (like links or passwords) and mostly numbers (like card numbers) are
+            never sent. The switch turns the button and the shortcut off on all pages.
+          </p>
+        </section>
+        <section id="help-knowledge" class="help" hidden>
+          <h2 class="popover-title">Knowledge</h2>
+          <p>
+            Sent to your AI provider with every question you ask, up to 5,000 characters: a few lines about you
+            (what you study, your level, the language you want) or your study materials. A language set in settings
+            wins over one asked for here.
+          </p>
+          <p>It saves as you type and stays on this device. The switch stops sending it without deleting it.</p>
+        </section>
+        <section id="help-voice" class="help" hidden>
+          <h2 class="popover-title">Voice</h2>
+          <p>
+            Switch it on, then click a text field on a page and the microphone below it. Speak, then click again:
+            the text is typed where the cursor is. Esc cancels. With a language set in settings, speak in that
+            language; on Automatic, any language is recognized.
+          </p>
+          <p>
+            The microphone is on only while the button is red (the toolbar icon shows “rec”). The audio goes straight
+            to your AI provider's speech-to-text model and Pilbot keeps none of it. Fields for passwords, card numbers
+            and codes get no button.
+          </p>
+        </section>
+        <section id="help-summary" class="help" hidden>
+          <h2 class="popover-title">Summary</h2>
+          <p>
+            When you open a page with enough text, a small bar shows at the top: click the summary icon for a
+            summary of the page in 2–3 sentences, or × to close the bar.
+          </p>
+          <p>
+            Only the page title and its readable text are sent to your AI provider, after you click: menus, ads,
+            comments, forms, your own typing and hidden parts are left out, and long pages are shortened. Your
+            Knowledge text is not sent.
+          </p>
+        </section>
+      </div>
+
+      <!-- Settings popup, as wide as the panel's content. Values are theme names (see constants.js):
+           "system" follows Chrome. -->
+      <div id="settings-popover" class="popover settings-popover" popover>
+        <fieldset id="theme-picker" class="theme-picker">
+          <legend class="popover-title">Theme</legend>
+          <div class="segmented">
+            <label class="segment" title="Light">
+              <input type="radio" name="theme" value="light" />
+              <span class="segment-face">
+                <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 9c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"
+                  />
+                </svg>
+                <span class="segment-label">Light</span>
+              </span>
+            </label>
+            <label class="segment" title="Dark">
+              <input type="radio" name="theme" value="dark" />
+              <span class="segment-face">
+                <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M9.37 5.51A7.35 7.35 0 0 0 9.1 7.5c0 4.08 3.32 7.4 7.4 7.4.68 0 1.35-.09 1.99-.27A7.014 7.014 0 0 1 12 19c-3.86 0-7-3.14-7-7 0-2.93 1.81-5.45 4.37-6.49zM12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"
+                  />
+                </svg>
+                <span class="segment-label">Dark</span>
+              </span>
+            </label>
+            <label class="segment" title="Device">
+              <input type="radio" name="theme" value="system" />
+              <span class="segment-face">
+                <svg class="icon segment-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"
+                  />
+                </svg>
+                <span class="segment-label">Device</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- The language the AI answers and dictation write in (the panel itself stays in English). A text
+             field with suggestions as you type (sidepanel.js fills the list and shows the language set):
+             Automatic (the default, nothing sent) or one of the languages in constants.js. Text that
+             matches no language keeps the language set; only its code is saved. -->
+        <section class="popover-section" aria-labelledby="language-title">
+          <h2 id="language-title" class="popover-title">AI Language</h2>
+          <div class="list-group">
+            <div class="list-item language-field">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.987 7.987 0 0 1 5.08 16zm2.95-8H5.08a7.987 7.987 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"
+                />
+              </svg>
+              <input
+                type="text"
+                id="language-input"
+                class="language-input"
+                value="Automatic"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="language-list"
+                aria-labelledby="language-title"
+                placeholder="Type a language"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <svg class="icon list-item-trailing" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m7 10 5 5 5-5z" />
+              </svg>
+            </div>
+            <ul id="language-list" class="language-list" role="listbox" aria-labelledby="language-title" hidden></ul>
+          </div>
+        </section>
+
+        <!-- The AI provider in use (read from storage by sidepanel.js; never the key itself) and the
+             button that opens the provider screen to change it. -->
+        <section class="popover-section" aria-labelledby="provider-title">
+          <h2 id="provider-title" class="popover-title">AI provider</h2>
+          <!-- Privacy policy: opens the fixed page on the Pilbot website in a new tab. -->
+          <div class="list-group">
+            <div class="list-item list-item-static">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"
+                />
+              </svg>
+              <span class="list-item-text">
+                <span id="provider-name" class="list-item-title"></span>
+                <span id="provider-detail" class="list-item-supporting"></span>
+              </span>
+            </div>
+            <div class="list-item list-item-static">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M21 10h-8.35C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H13l2 2 2-2 2 2 4-4.04L21 10zM7 15c-1.65 0-3-1.35-3-3s1.35-3 3-3 3 1.35 3 3-1.35 3-3 3z"
+                />
+              </svg>
+              <span class="list-item-text">
+                <span class="list-item-title">API key</span>
+                <span id="provider-key-status" class="list-item-supporting"></span>
+              </span>
+            </div>
+            <a
+              class="list-item"
+              href="https://pilbot.pages.dev/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Opens pilbot.pages.dev/privacy in a new tab"
+            >
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3.19 19 6.3V11c0 4.52-2.98 8.69-7 9.93-4.02-1.24-7-5.41-7-9.93V6.3l7-3.11M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v2h-2V7zm0 4h2v6h-2v-6z"
+                />
+              </svg>
+              <span class="list-item-text">
+                <span class="list-item-title">Privacy policy</span>
+                <span class="list-item-supporting">How Pilbot handles your data</span>
+              </span>
+              <svg class="icon list-item-trailing" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
+                />
+              </svg>
+            </a>
+          </div>
+          <button type="button" id="provider-edit" class="button tonal">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+              />
+            </svg>
+            Edit provider &amp; API key
+          </button>
+        </section>
+      </div>
+    </footer>
+    <!-- Material 3 basic dialog with an icon: confirms removing the API key. -->
+    <dialog id="remove-dialog" class="dialog" aria-labelledby="remove-dialog-title" aria-describedby="remove-dialog-text">
+      <svg class="icon dialog-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z" />
+      </svg>
+      <h2 id="remove-dialog-title" class="dialog-headline">Remove API key?</h2>
+      <p id="remove-dialog-text" class="dialog-supporting">
+        Pilbot forgets your provider and deletes the encrypted key from this device. You can set it up again at
+        any time.
+      </p>
+      <div class="dialog-actions">
+        <button type="button" id="remove-cancel" class="button text">Cancel</button>
+        <button type="button" id="remove-confirm" class="button text">Remove</button>
+      </div>
+    </dialog>
+
+    <!-- Material 3 snackbar: a short message after the provider is saved. -->
+    <div id="snackbar" class="snackbar" role="status" aria-live="polite" hidden>
+      <span id="snackbar-text" class="snackbar-text"></span>
+    </div>
+  </body>
+</html>

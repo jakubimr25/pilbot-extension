@@ -1,0 +1,1764 @@
+/* Material 3: color roles built around the cat icon's blue-grey (#bac7e3 on #1b1b1d),
+   the M3 type scale, shapes, state layers and a 4 px spacing grid.
+   Each color is light-dark(light, dark): the panel follows Chrome's light/dark mode,
+   unless the theme in the settings popup sets data-theme on <html> to force one. */
+:root {
+  color-scheme: light dark;
+  --surface: light-dark(#f9f9ff, #1b1b1d);
+  --surface-container-low: light-dark(#f3f3fa, #1f1f22);
+  --surface-container: light-dark(#ededf4, #232427);
+  --surface-container-high: light-dark(#e7e8ee, #2b2c30);
+  --surface-container-highest: light-dark(#e2e2e9, #36373b);
+  --on-surface: light-dark(#1a1b20, #e3e2e6);
+  --on-surface-variant: light-dark(#44474e, #c4c6d0);
+  --outline: light-dark(#74777f, #8e9099);
+  --outline-variant: light-dark(#c4c6d0, #44474e);
+  --primary: light-dark(#525f77, #bac7e3);
+  --on-primary: light-dark(#ffffff, #243147);
+  --primary-container: light-dark(#d6e3fb, #3b475e);
+  --on-primary-container: light-dark(#0f1c2e, #d6e3fb);
+  --secondary-container: light-dark(#dae2f9, #3e4759);
+  --on-secondary-container: light-dark(#131c2b, #dae2f9);
+  --error: light-dark(#ba1a1a, #ffb4ab);
+  --error-container: light-dark(#ffdad6, #93000a);
+  --on-error-container: light-dark(#410002, #ffdad6);
+  /* Cards and lists on a popup's surface-container: brighter in light mode, a step up in dark. */
+  --surface-bright: light-dark(#ffffff, #36373b);
+
+  /* State layers: a tint of the element's own content color, laid over its background. */
+  --hover-layer: linear-gradient(color-mix(in srgb, currentColor 8%, transparent) 0 0);
+  --press-layer: linear-gradient(color-mix(in srgb, currentColor 12%, transparent) 0 0);
+  --focus-layer: linear-gradient(color-mix(in srgb, currentColor 10%, transparent) 0 0);
+  --elevation-1:
+    0 1px 2px light-dark(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)),
+    0 1px 3px 1px light-dark(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3));
+  --elevation-2:
+    0 1px 2px light-dark(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)),
+    0 2px 6px 2px light-dark(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3));
+
+  --elevation-3:
+    0 1px 3px light-dark(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)),
+    0 4px 8px 3px light-dark(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.3));
+
+  /* More Material 3 color roles, for the setup's focus rings, dialog and snackbar. */
+  --secondary: light-dark(#575e70, #bfc6dc);
+  --inverse-surface: light-dark(#2f3036, #e3e2e6);
+  --inverse-on-surface: light-dark(#f1f0f7, #2f3036);
+  --scrim: rgba(0, 0, 0, 0.32);
+
+  --shape-extra-small: 4px;
+  --shape-small: 8px;
+  --shape-medium: 12px;
+  --shape-large: 16px;
+  --shape-extra-large: 28px;
+  --shape-full: 999px;
+  --motion-standard: 0.2s cubic-bezier(0.2, 0, 0, 1);
+  /* Material 3 "emphasized decelerate": things entering the screen. */
+  --motion-emphasized: 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
+  /* Material 3 "brand" typeface for headlines, "plain" for the rest. */
+  --font-brand: "Google Sans", "Google Sans Text", Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* M3 Expressive "fast spatial" spring, for shape changes. */
+  --motion-spring: 0.35s cubic-bezier(0.42, 1.67, 0.21, 0.9);
+
+  /* Side margins of the whole panel. */
+  --page-margin: 20px;
+  /* Space between the sections: greeting, menu, then the content. */
+  --section-gap: 24px;
+
+  /* Google Sans and Roboto when installed (no fonts are bundled), else the system font. */
+  font-family: "Google Sans Text", "Google Sans", Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Lists still scroll (wheel, touchpad, keyboard), just without a visible scrollbar. */
+* {
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* The side panel is as wide as the user drags it, so nothing has a fixed
+   width. Top and account bar stay put; the list in between scrolls. */
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--on-surface);
+  line-height: 20px;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Material Symbols are filled shapes on a 24 px grid. */
+.icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Provider setup (no provider yet, or editing it) or the panel ---------- */
+
+/* sidepanel.js sets data-setup on <body>; until it has read the provider, neither shows. */
+body:not([data-setup="required"], [data-setup="editing"]) > .setup,
+body:not([data-setup="ready"]) > :is(.top, .content, .account) {
+  display: none;
+}
+
+/* Material 3 onboarding: top app bar, progress, the step (scrolls), actions at the bottom. */
+.setup {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Material 3 small top app bar (64dp, "title large"): the logo while setting up, a close icon
+   button while editing. */
+.setup-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  padding: 0 var(--page-margin);
+}
+
+body[data-setup="editing"] .setup-bar {
+  gap: 4px;
+  padding-left: 8px;
+}
+
+.setup-bar-logo {
+  flex: none;
+  width: 32px;
+  height: 24px;
+}
+
+body[data-setup="editing"] .setup-bar-logo {
+  display: none;
+}
+
+.setup-logo-back {
+  fill: var(--surface-container-highest);
+}
+
+.setup-logo-face {
+  fill: var(--primary);
+}
+
+.setup-bar-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-brand);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Material 3 determinate linear progress indicator (4dp): the active indicator, a 4dp gap and the
+   track for what is left. No stop indicator: a dot fixed at the end read as a stuck marker.
+   --progress (0–1) is set by sidepanel.js. The active indicator's width counts the gap in, so at 1
+   it fills the whole bar (the gap and the empty track are then clipped) and every step, back and
+   forth, animates the same way. */
+.linear-progress {
+  --progress: 0.3333;
+  display: flex;
+  flex: none;
+  gap: 4px;
+  height: 4px;
+  margin: 0 var(--page-margin);
+  overflow: hidden;
+}
+
+.linear-progress-active {
+  flex: none;
+  width: calc(var(--progress) * (100% + 4px) - 4px);
+  border-radius: 2px;
+  background: var(--primary);
+  transition: width var(--motion-emphasized);
+}
+
+.linear-progress-track {
+  flex: 1;
+  min-width: 0;
+  border-radius: 2px;
+  background: var(--secondary-container);
+}
+
+.setup-form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Positioned, so hidden inputs placed absolutely inside (the radio buttons) scroll with it and never
+   reach past the panel: focusing one would scroll the whole page, top app bar and all, out of view. */
+.setup-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 24px var(--page-margin);
+}
+
+.setup-step {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Material 3 shared axis (X) transition into the next or previous step. */
+.setup-step[data-enter="forward"] {
+  animation: setup-step-forward var(--motion-emphasized) both;
+}
+
+.setup-step[data-enter="back"] {
+  animation: setup-step-back var(--motion-emphasized) both;
+}
+
+@keyframes setup-step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+}
+
+@keyframes setup-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+}
+
+/* "Label large" in the primary color: the step. */
+.setup-eyebrow {
+  margin: 0 0 4px;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+}
+
+/* "Headline small". */
+.setup-headline {
+  margin: 0;
+  font-family: var(--font-brand);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 32px;
+}
+
+.setup-headline:focus {
+  outline: none;
+}
+
+/* "Body medium". */
+.setup-supporting {
+  margin: 8px 0 24px;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+}
+
+/* ---------- Step 1: Material 3 list with radio buttons, in groups ---------- */
+
+.choice-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+/* "Title small", like the section headlines of Material 3 navigation drawers. */
+.choice-group-label {
+  margin: 20px 0 8px;
+  padding: 0 16px;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+}
+
+.choice-group-label:first-child {
+  margin-top: 0;
+}
+
+/* Material 3 Expressive segmented list: items 2dp apart, rounded outer corners. */
+.choice-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+/* Two-line list item (72dp): leading radio button, headline ("body large") and supporting text
+   ("body medium"). The picked one takes the secondary container. */
+.choice-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 8px 24px 8px 6px;
+  border-radius: var(--shape-extra-small);
+  background-color: var(--surface-container);
+  cursor: pointer;
+  transition: background-color var(--motion-standard);
+}
+
+.choice-item:first-child {
+  border-start-start-radius: var(--shape-large);
+  border-start-end-radius: var(--shape-large);
+}
+
+.choice-item:last-child {
+  border-end-start-radius: var(--shape-large);
+  border-end-end-radius: var(--shape-large);
+}
+
+.choice-item:hover {
+  background-image: var(--hover-layer);
+}
+
+.choice-item:active {
+  background-image: var(--press-layer);
+}
+
+.choice-item:has(.radio-input:checked) {
+  background-color: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.choice-item:has(.radio-input:focus-visible) {
+  outline: 3px solid var(--secondary);
+  outline-offset: -3px;
+}
+
+.choice-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.choice-headline {
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+}
+
+.choice-supporting {
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+}
+
+.choice-item:has(.radio-input:checked) .choice-supporting {
+  color: inherit;
+}
+
+/* Material 3 radio button: 20dp, 2dp outline; selected, a 10dp dot in the primary color. The
+   input stays in the page (focusable, arrow keys) but is not drawn. */
+/* Positioned: the hidden input stays inside the radio button (see .setup-scroll). */
+.radio {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.radio-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radio-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--on-surface-variant);
+  border-radius: 50%;
+  transition: border-color var(--motion-standard);
+}
+
+.radio-icon::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  transform: scale(0);
+  transition: transform var(--motion-standard);
+}
+
+.radio-input:checked + .radio-icon {
+  border-color: var(--primary);
+}
+
+.radio-input:checked + .radio-icon::after {
+  transform: scale(1);
+}
+
+.radio-input:disabled + .radio-icon {
+  opacity: 0.38;
+}
+
+/* ---------- Step 2: the endpoint (read-only or a field) and the API key ---------- */
+
+/* Text fields styled like the language field in settings (a Material 3 Expressive list item used
+   as a field): a filled container with large corners, a leading icon, the text in "title small"
+   and no outline; focus shows as a quiet state layer. The label sits above it ("title small",
+   like the settings' section titles), the supporting text below ("body small"). */
+.text-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.text-field-label {
+  margin: 0 0 8px;
+  padding: 0 4px;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+}
+
+.text-field-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 0 4px 0 16px;
+  border-radius: var(--shape-large);
+  background-color: var(--surface-container-highest);
+  color: var(--on-surface-variant);
+  cursor: text;
+  transition: box-shadow var(--motion-standard);
+}
+
+.text-field-box:hover {
+  background-image: var(--hover-layer);
+}
+
+.text-field-box:focus-within {
+  background-image: var(--focus-layer);
+}
+
+/* Forced colors drop background layers, so focus needs a line there. */
+@media (forced-colors: active) {
+  .text-field-box:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+/* An error: a 2dp ring, the icon and the label in the error color. */
+.text-field[data-error] .text-field-box {
+  box-shadow: inset 0 0 0 2px var(--error);
+  color: var(--error);
+}
+
+.text-field[data-error] .text-field-label {
+  color: var(--error);
+}
+
+.text-field-leading {
+  flex: none;
+}
+
+.text-field-input {
+  flex: 1;
+  min-width: 0;
+  height: 54px;
+  margin: 0;
+  padding: 0 12px 0 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--on-surface);
+  caret-color: var(--primary);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  text-overflow: ellipsis;
+}
+
+.text-field-input::placeholder {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+  opacity: 1;
+}
+
+.text-field[data-error] .text-field-input {
+  caret-color: var(--error);
+}
+
+.text-field-box:has(.text-field-input:disabled) {
+  opacity: 0.38;
+}
+
+/* Read-only (the fixed endpoint of a known provider): the same label, container, icon and text as
+   the fields, without the pointer and state layers of something to type in. */
+.text-field-readonly .text-field-box {
+  cursor: default;
+}
+
+.text-field-readonly .text-field-box:is(:hover, :focus-within) {
+  background-image: none;
+}
+
+/* The text of a read-only field, set like the fields' input text; a long address wraps. */
+.text-field-value {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px 8px 0;
+  color: var(--on-surface);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  overflow-wrap: anywhere;
+}
+
+.text-field-supporting {
+  margin: 6px 0 0;
+  padding: 0 16px;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.4px;
+}
+
+/* An error, or a note worth seeing (a model the provider does not list). */
+.text-field:is([data-error], [data-note]) .text-field-supporting {
+  color: var(--error);
+}
+
+/* Show / hide the key: an icon button at the end of the field. */
+.text-field-trailing[aria-pressed="true"] .icon-show,
+.text-field-trailing:not([aria-pressed="true"]) .icon-hide {
+  display: none;
+}
+
+/* "Get an API key" and "Remove saved key": text buttons whose container (shown on hover) starts at
+   the fields' left edge, so it never sticks out past them. */
+.setup-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: -8px 0 0;
+}
+
+/* ---------- Errors and actions ---------- */
+
+/* An error that belongs to no field ("body medium", error color). */
+.setup-status {
+  margin: 0;
+  padding: 0 var(--page-margin) 8px;
+  color: var(--error);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+}
+
+/* Back (text button) on the left, Next / Finish (filled button) on the right. */
+.setup-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 16px var(--page-margin) 24px;
+}
+
+.setup-actions .button.filled {
+  margin-left: auto;
+  min-width: 96px;
+}
+
+/* ---------- Material 3 icon button (standard) ---------- */
+
+.icon-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  transition: background-color var(--motion-standard);
+}
+
+.icon-button:hover:not(:disabled) {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.icon-button:active:not(:disabled) {
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.icon-button:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.icon-button:disabled {
+  color: color-mix(in srgb, var(--on-surface) 38%, transparent);
+  cursor: default;
+}
+
+/* ---------- Material 3 basic dialog with an icon ---------- */
+
+.dialog {
+  width: min(312px, calc(100vw - 48px));
+  padding: 24px;
+  border: 0;
+  border-radius: var(--shape-extra-large);
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  box-shadow: var(--elevation-3);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.dialog[open] {
+  animation: dialog-in var(--motion-emphasized);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+}
+
+.dialog-icon {
+  display: block;
+  margin: 0 auto 16px;
+  color: var(--secondary);
+}
+
+/* "Headline small", centered under the icon. */
+.dialog-headline {
+  margin: 0 0 16px;
+  font-family: var(--font-brand);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 32px;
+  text-align: center;
+}
+
+.dialog-supporting {
+  margin: 0;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+/* ---------- Material 3 snackbar ---------- */
+
+.snackbar {
+  position: fixed;
+  right: var(--page-margin);
+  bottom: 84px;
+  left: var(--page-margin);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 14px 16px;
+  border-radius: var(--shape-extra-small);
+  background: var(--inverse-surface);
+  color: var(--inverse-on-surface);
+  box-shadow: var(--elevation-3);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+  animation: snackbar-in var(--motion-emphasized);
+}
+
+@keyframes snackbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* ---------- Top app bar: greeting, on/off switch, menu ---------- */
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+  padding: 24px var(--page-margin) 0;
+}
+
+.app-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+}
+
+/* Material "title large". */
+.greeting {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+
+.greeting-name {
+  color: var(--primary);
+}
+
+/* ---------- Connected button group: the menu, the theme in the settings popup (radio buttons)
+   and the help and settings buttons ----------
+   Material 3 Expressive: tonal buttons 2 px apart with small inner corners; the
+   chosen one is filled and turns fully round. */
+
+.segmented {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 2px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.segment {
+  position: relative;
+  display: block;
+  min-width: 0;
+  cursor: pointer;
+}
+
+/* Hidden but still focusable, so arrow keys move between the options. */
+.segment input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Material "label large". */
+.segment-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--shape-small);
+  background-color: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    border-radius var(--motion-spring),
+    background-color var(--motion-standard),
+    color var(--motion-standard);
+}
+
+/* Outer corners of the group are round (half the 40 px height). */
+.segment:first-of-type .segment-face {
+  border-start-start-radius: 20px;
+  border-end-start-radius: 20px;
+}
+
+.segment:last-of-type .segment-face {
+  border-start-end-radius: 20px;
+  border-end-end-radius: 20px;
+}
+
+.segment-face .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.segment:hover .segment-face {
+  background-image: var(--hover-layer);
+}
+
+.segment:active .segment-face {
+  background-image: var(--press-layer);
+}
+
+.segment input:checked + .segment-face {
+  border-radius: 20px;
+  background-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.segment input:focus-visible + .segment-face {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Menu: icon-only buttons (names are tooltips and screen-reader text) sharing
+   the full width, so they also fit the narrowest panel. */
+.menu .segment-face {
+  padding: 0;
+}
+
+/* Plain buttons in a group (help, settings) wear the same face. */
+button.segment-face {
+  width: 56px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.segmented > button.segment-face:first-child {
+  border-start-start-radius: 20px;
+  border-end-start-radius: 20px;
+}
+
+.segmented > button.segment-face:last-child {
+  border-start-end-radius: 20px;
+  border-end-end-radius: 20px;
+}
+
+button.segment-face:hover {
+  background-image: var(--hover-layer);
+}
+
+button.segment-face:active {
+  background-image: var(--press-layer);
+}
+
+button.segment-face:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Content: one view at a time, picked in the menu ---------- */
+
+/* Positioned for the same reason as .setup-scroll. */
+.content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--page-margin) 20px;
+}
+
+.view {
+  flex: none;
+}
+
+/* ---------- Section title, with the view's own switch ---------- */
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+/* Material "title small". */
+.section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+/* ---------- Empty states (what the Ask and Summary switches do, the microphone page) ---------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 48px 24px;
+  color: var(--on-surface-variant);
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.empty-icon .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.empty :is(h1, p) {
+  margin: 0;
+}
+
+.empty .button {
+  margin-top: 20px;
+}
+
+/* Material "title medium". */
+.empty-title {
+  color: var(--on-surface);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+/* ---------- Views: a title with the feature's own switch ---------- */
+
+.feature {
+  padding-top: var(--section-gap);
+}
+
+.feature .section-head {
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+/* ---------- Knowledge: a text field that fills the panel ---------- */
+
+.knowledge {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* Material filled text field. */
+.knowledge-input {
+  flex: 1;
+  min-height: 160px;
+  width: 100%;
+  margin: 16px 0 0;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--shape-large);
+  outline: 0;
+  background-color: var(--surface-container-high);
+  color: var(--on-surface);
+  line-height: 20px;
+  resize: none;
+  transition:
+    background-color var(--motion-standard),
+    opacity var(--motion-standard);
+}
+
+.knowledge-input:hover {
+  background-image: var(--hover-layer);
+}
+
+.knowledge-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.knowledge-input::placeholder {
+  color: var(--on-surface-variant);
+  opacity: 1;
+}
+
+/* Switched off: the text stays (and can be edited) but is not sent. */
+.knowledge:has(#knowledge-enabled:not(:checked)) .knowledge-input {
+  opacity: 0.6;
+}
+
+/* Material "body small" supporting text: save status and character count. */
+.knowledge-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 0 16px;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+}
+
+.knowledge-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Voice: microphone permission (Material list item on a filled card) ---------- */
+
+.mic {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 12px 12px 16px;
+  border-radius: var(--shape-large);
+  background: var(--surface-container);
+}
+
+.mic-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.mic-icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.mic-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Material "title small" over "body small". */
+.mic-title {
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+.mic-status {
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+}
+
+/* ---------- Ask and Summary: what the switch does, for its current state ---------- */
+
+.ask:has(#ask-enabled:checked) .ask-off,
+.ask:has(#ask-enabled:not(:checked)) .ask-on,
+.summary:has(#summary-enabled:checked) .summary-off,
+.summary:has(#summary-enabled:not(:checked)) .summary-on {
+  display: none;
+}
+
+/* ---------- Microphone permission page (microphone.html) ---------- */
+
+.permission {
+  max-width: 420px;
+  margin: auto;
+}
+
+/* Material "body medium", in the content color: what to do next. */
+.empty .permission-status {
+  margin-top: 12px;
+  color: var(--on-surface);
+}
+
+/* ---------- Material 3 common buttons: filled, tonal, text ---------- */
+
+/* 40dp, full corners, "label large", 18dp icons; 24dp side padding (12dp for text buttons). */
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--shape-full);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.button:has(> .icon:first-child) {
+  padding-left: 16px;
+}
+
+.button.tonal {
+  background-color: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+/* State layers mixed into the background color, so they fade in. */
+.button.tonal:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--on-secondary-container) 8%, var(--secondary-container));
+  box-shadow: var(--elevation-1);
+}
+
+.button.tonal:active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--on-secondary-container) 12%, var(--secondary-container));
+  box-shadow: none;
+}
+
+.button.filled {
+  background-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.button.filled:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--on-primary) 8%, var(--primary));
+  box-shadow: var(--elevation-1);
+}
+
+.button.filled:active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--on-primary) 12%, var(--primary));
+  box-shadow: none;
+}
+
+.button.text {
+  padding: 0 12px;
+  background-color: transparent;
+  color: var(--primary);
+}
+
+.button.text:has(> .icon:first-child) {
+  padding-left: 12px;
+  padding-right: 16px;
+}
+
+.button.text.danger {
+  color: var(--error);
+}
+
+.button.text:hover:not(:disabled) {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.button.text:active:not(:disabled) {
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* Material 3 disabled: 12% container, 38% content. */
+.button:disabled {
+  background-color: color-mix(in srgb, var(--on-surface) 12%, transparent);
+  color: color-mix(in srgb, var(--on-surface) 38%, transparent);
+  box-shadow: none;
+  cursor: default;
+}
+
+.button.text:disabled {
+  background-color: transparent;
+}
+
+/* Working (checking the provider): keeps its color, with a small circular progress indicator. */
+.button[aria-busy="true"]:disabled {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  cursor: progress;
+}
+
+.button[aria-busy="true"]::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.button .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* A note under a view's content (Voice without a speech-to-text model). */
+.view-note {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border-radius: var(--shape-large);
+  background: var(--error-container);
+  color: var(--on-error-container);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+}
+
+/* ---------- Account bar: reset, then help and settings ---------- */
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--page-margin) 16px;
+}
+
+/* Reset: a round icon button with the same tonal face as the help and settings buttons. */
+.reset-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--surface-container-high);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+
+.reset-button .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.reset-button:hover:not(:disabled) {
+  background-image: var(--hover-layer);
+}
+
+.reset-button:active:not(:disabled) {
+  background-image: var(--press-layer);
+}
+
+.reset-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.reset-button:disabled {
+  color: color-mix(in srgb, var(--on-surface) 38%, transparent);
+  cursor: default;
+}
+
+/* Help and settings sit at the right end, in line with the menu above. */
+.footer-actions {
+  flex: none;
+  margin-left: auto;
+}
+
+/* A button stays chosen (filled, fully round) while its popup is open. */
+.account:has(#help-popover:popover-open) #help,
+.account:has(#settings-popover:popover-open) #settings {
+  border-radius: 20px;
+  background-color: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ---------- Help and settings popups (native popovers: close on Esc and outside clicks) ---------- */
+
+/* Placed above the help and settings buttons by sidepanel.js. No shadow: Material 3 also shows
+   elevation with tone, so the tonal surface sets the popup off from the panel. */
+.popover {
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  inset: auto;
+  margin: 0;
+  padding: 16px;
+  border: none;
+  border-radius: var(--shape-large);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  transform-origin: bottom right;
+}
+
+.popover:popover-open {
+  animation: popover-in 0.15s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+
+/* Settings: as wide as the panel's content, so its edges line up with the menu and the account bar
+   (sidepanel.js sets right and bottom). */
+.settings-popover {
+  left: var(--page-margin);
+  width: auto;
+  max-width: none;
+}
+
+.theme-picker {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* Sections of the settings popup below the theme: AI language, AI provider. */
+.popover-section {
+  margin-top: 20px;
+}
+
+/* Edit provider & API key, as wide as the popup. */
+.popover-section .button {
+  justify-content: center;
+  width: 100%;
+}
+
+/* The provider, its key and the privacy policy: Material 3 Expressive list items 2 px apart, with
+   small inner corners and round outer ones, like the connected button groups. */
+.list-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.list-group + .button {
+  margin-top: 12px;
+}
+
+/* Material list item: leading icon, "title small" over "body small", trailing icon. */
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px 8px 16px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--surface-bright);
+  color: var(--on-surface-variant);
+  text-align: start;
+  /* The privacy policy item is a link: no underline. */
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list-item:first-child {
+  border-start-start-radius: var(--shape-large);
+  border-start-end-radius: var(--shape-large);
+}
+
+.list-item:last-child {
+  border-end-start-radius: var(--shape-large);
+  border-end-end-radius: var(--shape-large);
+}
+
+.list-item:hover {
+  background-image: var(--hover-layer);
+}
+
+.list-item:active {
+  background-image: var(--press-layer);
+}
+
+/* Information only (the provider and its key): no pointer, no state layers. */
+.list-item-static {
+  cursor: default;
+}
+
+.list-item-static:is(:hover, :active) {
+  background-image: none;
+}
+
+/* Inside the item, as the items are only 2 px apart. */
+.list-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.list-item-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.list-item-title,
+.list-item-supporting {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-item-title {
+  color: var(--on-surface);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+.list-item-supporting {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+}
+
+.list-item-trailing {
+  width: 20px;
+  height: 20px;
+}
+
+/* Language: a text field with suggestions (a combobox, sidepanel.js) whose list joins it as connected
+   list items. The input covers the whole field; the icons show through it. */
+.language-field {
+  position: relative;
+  border-radius: var(--shape-large);
+  cursor: text;
+  transition: border-radius var(--motion-spring);
+}
+
+.language-field:has([aria-expanded="true"]) {
+  border-end-start-radius: 4px;
+  border-end-end-radius: 4px;
+}
+
+/* No outline around the field: focus shows as a quiet state layer (with the caret and the selected name). */
+.language-field:focus-within {
+  background-image: var(--focus-layer);
+}
+
+/* Forced colors drop background layers, so focus needs a line there. */
+@media (forced-colors: active) {
+  .language-field:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+.language-field .list-item-trailing {
+  margin-left: auto;
+  transition: transform var(--motion-standard);
+}
+
+.language-field:has([aria-expanded="true"]) .list-item-trailing {
+  transform: rotate(180deg);
+}
+
+.language-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 44px 0 56px;
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  background: none;
+  color: var(--on-surface);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  text-overflow: ellipsis;
+}
+
+.language-input::placeholder {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+  opacity: 1;
+}
+
+.language-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Material menu item: the name in its own language, lined up with the field's text, and its English
+   name at the end. */
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 16px 0 56px;
+  border-radius: 4px;
+  background-color: var(--surface-bright);
+  cursor: pointer;
+}
+
+.language-option:last-child {
+  border-end-start-radius: var(--shape-large);
+  border-end-end-radius: var(--shape-large);
+}
+
+.language-option:hover {
+  background-image: var(--hover-layer);
+}
+
+/* Highlighted while typing or with the arrow keys: Enter or leaving the field picks it. */
+.language-option[aria-selected="true"] {
+  background-color: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.language-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Material "body small". */
+.language-english {
+  flex: none;
+  color: var(--on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+}
+
+.language-option[aria-selected="true"] .language-english {
+  color: inherit;
+}
+
+/* Material "title small" (a legend in settings, a heading in help). */
+.popover-title {
+  margin: 0 0 12px;
+  padding: 0 4px;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+}
+
+/* Help: a few short paragraphs about the view picked in the menu. */
+.help-popover {
+  width: min(320px, calc(100vw - 16px));
+}
+
+.help .popover-title {
+  margin-bottom: 8px;
+}
+
+/* Material "body medium". */
+.help p {
+  margin: 0;
+  padding: 0 4px;
+}
+
+.help p + p {
+  margin-top: 8px;
+  color: var(--on-surface-variant);
+}
+
+/* Theme: icon and name on each button, sharing the popup's width, on the popup's tinted surface.
+   Too narrow for the names, only the icons show (the names stay as tooltips and screen-reader text). */
+.theme-picker .segmented {
+  container-type: inline-size;
+}
+
+.theme-picker .segment-face {
+  padding: 0 8px;
+  background-color: var(--surface-container-highest);
+}
+
+.theme-picker .segment input:checked + .segment-face {
+  background-color: var(--primary);
+}
+
+.segment-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container (width < 280px) {
+  .segment-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* ---------- Switch (styled checkbox with role="switch"), Material 3 ---------- */
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  cursor: pointer;
+}
+
+.switch input {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Off: outlined track, small handle. On: filled track, larger handle.
+   The handle grows while pressed; a ring around it is the hover layer. */
+.track {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  border: 2px solid var(--outline);
+  border-radius: var(--shape-full);
+  background: var(--surface-container-highest);
+  transition:
+    background-color var(--motion-standard),
+    border-color var(--motion-standard);
+}
+
+.track::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--outline);
+  transform: translateY(-50%);
+  transition:
+    left var(--motion-standard),
+    width var(--motion-standard),
+    height var(--motion-standard),
+    background-color var(--motion-standard),
+    box-shadow var(--motion-standard);
+}
+
+.switch:hover .track::after {
+  background: var(--on-surface-variant);
+  box-shadow: 0 0 0 12px color-mix(in srgb, var(--on-surface) 8%, transparent);
+}
+
+.switch:active input:not(:checked) + .track::after {
+  left: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.switch input:checked + .track {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.switch input:checked + .track::after {
+  left: 22px;
+  width: 24px;
+  height: 24px;
+  background: var(--on-primary);
+}
+
+.switch:hover input:checked + .track::after {
+  background: var(--primary-container);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.switch:active input:checked + .track::after {
+  left: 20px;
+  width: 28px;
+  height: 28px;
+}
+
+.switch input:focus-visible + .track {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment-face,
+  .knowledge-input,
+  .button,
+  .icon-button,
+  .choice-item,
+  .radio-icon,
+  .radio-icon::after,
+  .text-field-box,
+  .linear-progress-active,
+  .track,
+  .track::after,
+  .language-field,
+  .language-field .list-item-trailing {
+    transition: none;
+  }
+
+  .popover:popover-open,
+  .setup-step[data-enter],
+  .dialog[open],
+  .snackbar {
+    animation: none;
+  }
+}

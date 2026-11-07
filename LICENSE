@@ -1,0 +1,48 @@
+Pilbot License — Personal, Non-Commercial Use
+Applies to Pilbot 1.0.0 and later versions that include this file.
+
+Copyright (c) 2026 the author of Pilbot. All rights reserved, except as
+permitted below.
+
+1. Permission
+   You may download, install and use Pilbot free of charge for your own
+   private, non-commercial purposes. You may also share unchanged copies
+   of Pilbot with others, as long as you do so free of charge and include
+   this LICENSE file.
+
+2. Restrictions
+   You may not:
+   a) sell, resell, rent, lease, license or sublicense Pilbot or any part
+      of it;
+   b) include Pilbot or any part of it in a product or service that is
+      paid for or that earns money in any other way, for example through
+      ads, subscriptions or donations tied to access;
+   c) use Pilbot commercially in any other way.
+
+3. Third-party parts
+   Some parts of Pilbot come from others and stay under their own licenses.
+   They are listed in THIRD-PARTY-NOTICES.txt.
+
+4. Your AI provider
+   Pilbot sends requests to the AI provider you choose, using your own API
+   key. Your use of that provider is governed by its own terms, and any
+   costs it charges are yours.
+
+5. No warranty
+   Pilbot is provided "as is", without warranty of any kind, express or
+   implied, including the implied warranties of merchantability, fitness
+   for a particular purpose and non-infringement. AI answers, summaries and
+   transcriptions can be wrong or incomplete.
+
+6. Limitation of liability
+   To the fullest extent permitted by law, the author is not liable for any
+   errors, data loss, charges from your AI provider or any other damage
+   arising from the use of, or inability to use, Pilbot.
+
+7. Privacy
+   How Pilbot handles data is described in the privacy policy on the Pilbot
+   website.
+
+8. Termination
+   If you break these terms, your permission to use Pilbot ends
+   automatically.
