@@ -53,7 +53,8 @@ Groq comes with its models filled in; for the other providers you type the model
 
 Pilbot isn't in the Chrome Web Store; you load it yourself. It needs Google Chrome 123 or newer on a computer.
 
-1. Download the ZIP from [pilbot.pages.dev](https://pilbot.pages.dev) and unzip it, or clone this repository.
+1. Download the ZIP from [Releases](https://github.com/jakubimr25/pilbot-extension/releases/latest) or
+   [pilbot.pages.dev](https://pilbot.pages.dev) and unzip it, or clone this repository.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and pick the folder that contains `manifest.json`.
 4. Pin Pilbot from the puzzle-piece menu and click its icon. The side panel opens with a three-step setup:
@@ -111,11 +112,17 @@ Load the folder unpacked (see [Install](#install)), edit, then click ↻ on `chr
 panel. Design notes, data flows and the reasoning behind the security choices are in
 [DEVELOPMENT.md](DEVELOPMENT.md) (in Slovak).
 
-To build a release ZIP, first set the same version in `manifest.json`, `LICENSE` and `THIRD-PARTY-NOTICES.txt`,
-then:
+### Releases
+
+1. Set the same new version in `manifest.json`, `LICENSE` and `THIRD-PARTY-NOTICES.txt`, and push to `main`.
+2. On GitHub, open **Actions → Release → Run workflow**.
+
+The [workflow](.github/workflows/release.yml) builds `pilbot-<version>.zip`, signs where it was built (a build
+provenance attestation) and publishes it as an immutable release tagged `v<version>`: neither the ZIP nor the tag can
+change afterwards. Anyone can check that a ZIP was built here with the [GitHub CLI](https://cli.github.com):
 
 ```bash
-zip -X pilbot-1.0.0.zip manifest.json LICENSE THIRD-PARTY-NOTICES.txt *.js *.html styles.css icons/*.png
+gh attestation verify pilbot-1.0.0.zip --repo jakubimr25/pilbot-extension
 ```
 
 ## License
