@@ -2,7 +2,8 @@
  * Side panel. Until an AI provider is set up, it shows only the provider
  * setup: a Material 3 onboarding flow in three steps (1. the provider, Groq by
  * default; 2. the connection: the API key, and the endpoint for Custom and
- * servers on this computer, checked with the provider; 3. the models, typed
+ * servers on this computer, checked with the provider, and how long to wait
+ * for answers; 3. the models, picked from those the provider lists or typed
  * as their IDs). Once one is set up: the on/off switch, a
  * menu that picks the view (Ask, the switch for the Ask bar on pages; the
  * Knowledge text sent with every question; Voice, the dictation switch and
@@ -25,14 +26,17 @@
  */
 
 import {
+  DEFAULT_ANSWER_TIMEOUT_SECONDS,
   DEFAULT_THEME,
   LANGUAGES,
+  MAX_ANSWER_TIMEOUT_SECONDS,
   MAX_API_KEY_LENGTH,
   MAX_ENDPOINT_LENGTH,
   MAX_MODEL_LENGTH,
   MAX_REFERENCE_LENGTH,
   MESSAGE_TYPES,
   MICROPHONE_PAGE_PATH,
+  MIN_ANSWER_TIMEOUT_SECONDS,
   PROVIDER_PRESETS,
   STORAGE_KEYS,
   THEMES,
@@ -45,6 +49,7 @@ import {
   isReferenceEnabled,
   isSupportedLanguage,
   isSupportedTheme,
+  isValidAnswerTimeout,
   isValidApiKey,
   isValidModel,
   normalizeReferenceText,
@@ -91,9 +96,11 @@ import {
  * @property {HTMLAnchorElement} keyLink
  * @property {HTMLElement} keyLinkLabel
  * @property {HTMLButtonElement} removeButton
- * @property {HTMLElement} modelsText
+ * @property {SetupField} timeout
  * @property {SetupField} chatModel
+ * @property {HTMLUListElement} chatModelList
  * @property {SetupField} transcriptionModel
+ * @property {HTMLUListElement} transcriptionModelList
  * @property {HTMLParagraphElement} providerStatus
  * @property {HTMLButtonElement} backButton
  * @property {HTMLButtonElement} nextButton
@@ -263,13 +270,15 @@ function getElements() {
     keyLink: getRequiredElement('provider-key-link', HTMLAnchorElement),
     keyLinkLabel: getRequiredElement('provider-key-link-label', HTMLElement),
     removeButton: getRequiredElement('provider-remove', HTMLButtonElement),
-    modelsText: getRequiredElement('step-models-text', HTMLElement),
+    timeout: getSetupField('timeout-field', 'provider-timeout', 'provider-timeout-support'),
     chatModel: getSetupField('chat-model-field', 'provider-chat-model', 'chat-model-support'),
+    chatModelList: getRequiredElement('chat-model-list', HTMLUListElement),
     transcriptionModel: getSetupField(
       'transcription-model-field',
       'provider-transcription-model',
       'transcription-model-support',
     ),
+    transcriptionModelList: getRequiredElement('transcription-model-list', HTMLUListElement),
     providerStatus: getRequiredElement('provider-status', HTMLParagraphElement),
     backButton: getRequiredElement('setup-back', HTMLButtonElement),
     nextButton: getRequiredElement('setup-next', HTMLButtonElement),
@@ -843,10 +852,30 @@ const PRESET_GROUPS = Object.freeze([
 ]);
 /** How long the snackbar stays (Material 3: 4–10 s). */
 const SNACKBAR_MS = 5000;
-/** Supporting texts shown without an error. The model fields in step 3 have none: only notes and errors. */
+/**
+ * Supporting texts shown without an error. The timeout and the model fields have none: only errors
+ * (and notes for the models).
+ */
 const DEFAULT_TEXTS = Object.freeze({
   endpoint: 'OpenAI-compatible base URL, usually ending in /v1.',
 });
+const TIMEOUT_ERROR = `Enter whole seconds, from ${MIN_ANSWER_TIMEOUT_SECONDS} to ${MAX_ANSWER_TIMEOUT_SECONDS}.`;
+/**
+ * The model fields of step 3: "chat" for answers and summaries, "speech" for Voice.
+ * @typedef {'chat' | 'speech'} ModelKind
+ */
+/** @type {readonly ModelKind[]} */
+const MODEL_KINDS = Object.freeze(['chat', 'speech']);
+/**
+ * Models that cannot answer in a chat (embeddings, images, video, speech, moderation, realtime…):
+ * not offered as the chat model. They can still be typed.
+ */
+const NON_CHAT_MODEL_PATTERN =
+  /embed|whisper|transcri|tts|imagen|veo-|dall-e|image|moderation|rerank|guard|aqa|lyria|native-audio|realtime|orpheus|(?:^|[/_-])live(?:[/_-]|$)/i;
+/** Speech-to-text models: the only ones offered for Voice. Others can still be typed. */
+const SPEECH_MODEL_PATTERN = /whisper|transcri|voxtral|(?:^|[/_-])stt(?:[/_-]|$)/i;
+/** A model field suggests at most this many models at a time, like the language field; typing finds the others. */
+const MAX_MODEL_SUGGESTIONS = MAX_LANGUAGE_SUGGESTIONS;
 
 /** @type {ProviderSettings | null} The provider as last read from storage. */
 let provider = null;
@@ -858,6 +887,14 @@ let setupStep = 1;
 let filledPresetId = null;
 /** @type {string[] | null} The model IDs the provider listed in step 2; null when unknown. */
 let listedModels = null;
+/** @type {Record<ModelKind, string[]>} What each model field offers from the listed models, sorted. */
+let modelChoices = { chat: [], speech: [] };
+/**
+ * Each model field's open list: the models shown and the highlighted one (-1 for none). No models
+ * while it is closed.
+ * @type {Record<ModelKind, { options: string[], highlight: number }>}
+ */
+const modelLists = { chat: { options: [], highlight: -1 }, speech: { options: [], highlight: -1 } };
 /** Whether a check, save or removal is waiting for the background worker. */
 let providerBusy = false;
 /** Pending end of the snackbar; 0 when none shows. */
@@ -939,6 +976,7 @@ function setProviderStatus(elements, message) {
 function clearSetupErrors(elements) {
   renderEndpointField(elements, null);
   renderKeyField(elements, null);
+  renderTimeoutField(elements, null);
   renderModelFields(elements, null, null);
   setProviderStatus(elements, '');
 }
@@ -1030,11 +1068,231 @@ function renderKeyField(elements, error) {
 }
 
 /**
+ * @param {PanelElements} elements
+ * @param {string | null} error
+ */
+function renderTimeoutField(elements, error) {
+  renderField(elements.timeout, error, '');
+}
+
+/**
+ * @param {PanelElements} elements
+ * @returns {number | null} The seconds typed, or null when they are not a time the setup takes.
+ */
+function readTimeout(elements) {
+  const text = elements.timeout.input.value.trim();
+  const seconds = /^\d{1,4}$/.test(text) ? Number(text) : Number.NaN;
+  return isValidAnswerTimeout(seconds) ? seconds : null;
+}
+
+/**
  * @param {string} id
  * @returns {string} The ID as listed models are compared (Gemini lists "models/…", Ollama "…:latest").
  */
 function normalizeModelId(id) {
   return id.trim().replace(/^models\//, '').replace(/:latest$/, '').toLowerCase();
+}
+
+/**
+ * @param {string} id
+ * @returns {string} The model's name without "provider/" ("openai/gpt-oss-120b" → "gpt-oss-120b"), lowercase.
+ */
+function getModelName(id) {
+  return id.slice(id.lastIndexOf('/') + 1).toLowerCase();
+}
+
+/**
+ * @param {string} id
+ * @returns {number} The version right after the model's family name ("gemini-2.5-flash" 2.5,
+ *   "gpt-4.1-mini" 4.1, "qwen3-32b" 3), or 0 when there is none ("gpt-oss-120b", "deepseek-chat").
+ */
+function getModelVersion(id) {
+  const match = /^[a-z]+-?(\d+(?:\.\d+)?)/.exec(getModelName(id));
+  return match === null ? 0 : Number(match[1]);
+}
+
+/**
+ * Orders a field's models for its suggestions: the model the preset suggests
+ * first, then the others of its family ("gemini", "gpt"…), then the rest;
+ * newer versions first in each, then by name.
+ * @param {string[]} ids
+ * @param {string} suggested The preset's model for the field ('' for none).
+ * @returns {string[]}
+ */
+function orderModels(ids, suggested) {
+  const family = /^[a-z]+/.exec(getModelName(suggested))?.[0] ?? '';
+  const rank = (/** @type {string} */ id) => {
+    if (suggested !== '' && normalizeModelId(id) === normalizeModelId(suggested)) {
+      return 0;
+    }
+    return family !== '' && getModelName(id).startsWith(family) ? 1 : 2;
+  };
+  return [...ids].sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      getModelVersion(b) - getModelVersion(a) ||
+      a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }),
+  );
+}
+
+/**
+ * Keeps the models the provider listed in step 2, and what each model field
+ * offers from them: IDs as the API takes them (Gemini lists "models/…"), each
+ * once, in the order of orderModels(); the chat field without models that
+ * cannot chat (all of them when that leaves none), Voice only speech-to-text
+ * models.
+ * @param {string[] | null} models null when unknown.
+ * @param {ProviderPreset} [preset] The provider picked, whose suggested models come first.
+ */
+function setListedModels(models, preset) {
+  listedModels = models;
+  const ids = [...new Set((models ?? []).map((id) => id.replace(/^models\//, '')).filter((id) => id !== ''))];
+  const chat = ids.filter((id) => !NON_CHAT_MODEL_PATTERN.test(id));
+  modelChoices = {
+    chat: orderModels(chat.length > 0 ? chat : ids, preset?.chatModel ?? ''),
+    speech: orderModels(
+      ids.filter((id) => SPEECH_MODEL_PATTERN.test(id)),
+      preset?.transcriptionModel ?? '',
+    ),
+  };
+}
+
+/**
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ * @returns {{ part: SetupField, list: HTMLUListElement }}
+ */
+function getModelField(elements, kind) {
+  return kind === 'chat'
+    ? { part: elements.chatModel, list: elements.chatModelList }
+    : { part: elements.transcriptionModel, list: elements.transcriptionModelList };
+}
+
+/**
+ * Marks the highlighted model in a field's list and scrolls it into view.
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ */
+function renderModelHighlight(elements, kind) {
+  const { part, list } = getModelField(elements, kind);
+  const { highlight } = modelLists[kind];
+  for (const [index, option] of [...list.children].entries()) {
+    option.setAttribute('aria-selected', String(index === highlight));
+  }
+  const highlighted = list.children[highlight];
+  if (highlighted) {
+    part.input.setAttribute('aria-activedescendant', highlighted.id);
+    highlighted.scrollIntoView({ block: 'nearest' });
+  } else {
+    part.input.removeAttribute('aria-activedescendant');
+  }
+}
+
+/**
+ * Shows a field's list as it is in modelLists, or closes it when it has no
+ * models. IDs are rendered as text nodes only.
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ */
+function renderModelList(elements, kind) {
+  const { part, list } = getModelField(elements, kind);
+  const { options } = modelLists[kind];
+  const wasOpen = !list.hidden;
+  list.replaceChildren(
+    ...options.map((id, index) => {
+      const option = document.createElement('li');
+      option.id = `${list.id}-option-${index}`;
+      option.className = 'model-option';
+      option.setAttribute('role', 'option');
+      option.dataset.index = String(index);
+      option.textContent = id;
+      return option;
+    }),
+  );
+  const open = options.length > 0;
+  list.hidden = !open;
+  if (part.input.getAttribute('role') === 'combobox') {
+    part.input.setAttribute('aria-expanded', String(open));
+  }
+  if (open && !wasOpen) {
+    list.scrollIntoView({ block: 'nearest' });
+  }
+  renderModelHighlight(elements, kind);
+}
+
+/**
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ * @param {string} text Typed in the field; '' when the list opens without typing.
+ * @returns {string[]} The models a field suggests, like the language field
+ *   does: without text, the model in the field first, then the others; with
+ *   text, the model named exactly so, then those whose ID (or its part after
+ *   "provider/") starts with it, then those that only contain it.
+ */
+function findModels(elements, kind, text) {
+  const choices = modelChoices[kind];
+  const query = text.trim().toLowerCase();
+  if (query === '') {
+    const current = normalizeModelId(getModelField(elements, kind).part.input.value);
+    const inField = choices.find((id) => normalizeModelId(id) === current);
+    return inField === undefined ? choices : [inField, ...choices.filter((id) => id !== inField)];
+  }
+  const names = (/** @type {string} */ id) => {
+    const lower = id.toLowerCase();
+    return [lower, lower.slice(lower.lastIndexOf('/') + 1)];
+  };
+  const exact = choices.filter((id) => normalizeModelId(id) === normalizeModelId(query));
+  const starting = choices.filter((id) => !exact.includes(id) && names(id).some((name) => name.startsWith(query)));
+  const containing = choices.filter(
+    (id) => !exact.includes(id) && !starting.includes(id) && id.toLowerCase().includes(query),
+  );
+  return [...exact, ...starting, ...containing];
+}
+
+/**
+ * Opens a field's suggestions for the text, with one highlighted (-1 for
+ * none, past the end for the last), or closes them when none match.
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ * @param {string} text
+ * @param {number} highlight
+ */
+function showModelSuggestions(elements, kind, text, highlight) {
+  const options = findModels(elements, kind, text).slice(0, MAX_MODEL_SUGGESTIONS);
+  modelLists[kind] = { options, highlight: Math.min(highlight, options.length - 1) };
+  renderModelList(elements, kind);
+}
+
+/**
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ */
+function closeModelOptions(elements, kind) {
+  modelLists[kind] = { options: [], highlight: -1 };
+  renderModelList(elements, kind);
+}
+
+/** @param {PanelElements} elements */
+function closeAllModelOptions(elements) {
+  for (const kind of MODEL_KINDS) {
+    closeModelOptions(elements, kind);
+  }
+}
+
+/**
+ * Puts a model from a field's list into the field and closes the list.
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ * @param {number} index
+ */
+function pickModelOption(elements, kind, index) {
+  const id = modelLists[kind].options[index];
+  if (id === undefined) {
+    return;
+  }
+  getModelField(elements, kind).part.input.value = id;
+  closeModelOptions(elements, kind);
+  renderModelFields(elements, null, null);
 }
 
 /**
@@ -1048,7 +1306,8 @@ function isListedModel(id) {
 /**
  * The model fields' supporting texts: none by default; a note when the
  * provider does not list the model typed (it may still work, so it does not
- * block) or has no speech-to-text, or an error.
+ * block; not while its suggestions are open, as it is still being typed) or
+ * has no speech-to-text, or an error.
  * @param {PanelElements} elements
  * @param {string | null} chatError
  * @param {string | null} transcriptionError
@@ -1057,20 +1316,20 @@ function renderModelFields(elements, chatError, transcriptionError) {
   const chat = elements.chatModel.input.value.trim();
   const transcription = elements.transcriptionModel.input.value.trim();
   const name = getSetupProviderName(elements);
-  const chatNote = chat !== '' && !isListedModel(chat) ? `${name} does not list this model. Check the ID.` : '';
-  const transcriptionNote =
-    transcription !== '' && !isListedModel(transcription)
-      ? `${name} does not list this model. Check the ID.`
-      : transcription === '' && getPickedPreset(elements).id !== 'custom' && getPickedPreset(elements).transcriptionModel === ''
-        ? `${name} has no speech-to-text, so Voice stays off.`
-        : '';
+  const unlisted = (/** @type {string} */ id, /** @type {ModelKind} */ kind) =>
+    id !== '' && !isListedModel(id) && modelLists[kind].options.length === 0;
+  const chatUnlisted = unlisted(chat, 'chat');
+  const transcriptionUnlisted = unlisted(transcription, 'speech');
+  const chatNote = chatUnlisted ? `${name} does not list this model. Check the ID.` : '';
+  const transcriptionNote = transcriptionUnlisted
+    ? `${name} does not list this model. Check the ID.`
+    : transcription === '' && getPickedPreset(elements).id !== 'custom' && getPickedPreset(elements).transcriptionModel === ''
+      ? `${name} has no speech-to-text, so Voice stays off.`
+      : '';
   renderField(elements.chatModel, chatError, chatNote);
   renderField(elements.transcriptionModel, transcriptionError, transcriptionNote);
-  elements.chatModel.field.toggleAttribute('data-note', chatError === null && chatNote !== '');
-  elements.transcriptionModel.field.toggleAttribute(
-    'data-note',
-    transcriptionError === null && transcription !== '' && !isListedModel(transcription),
-  );
+  elements.chatModel.field.toggleAttribute('data-note', chatError === null && chatUnlisted);
+  elements.transcriptionModel.field.toggleAttribute('data-note', transcriptionError === null && transcriptionUnlisted);
 }
 
 /**
@@ -1097,17 +1356,30 @@ function clearKeyField(elements) {
 }
 
 /**
- * Step 3's text and the model fields' notes. The models are typed as their
- * IDs; the provider's suggested ones are filled in. What the provider listed
- * in step 2 only serves to point out an ID it does not know.
+ * Step 3: each model field is a combobox when the provider listed models it
+ * can offer (picked from the list, or typed), else a plain text field for the
+ * ID; and the fields' notes.
  * @param {PanelElements} elements
  */
 function renderModelsStep(elements) {
-  const name = getSetupProviderName(elements);
-  elements.modelsText.textContent =
-    listedModels === null
-      ? 'Type the IDs of the models you want to use.'
-      : `${name} offers ${listedModels.length} ${listedModels.length === 1 ? 'model' : 'models'}. Type the ID of the one you want.`;
+  for (const kind of MODEL_KINDS) {
+    const { part, list } = getModelField(elements, kind);
+    const offered = modelChoices[kind].length > 0;
+    part.field.toggleAttribute('data-listed', offered);
+    if (offered) {
+      part.input.setAttribute('role', 'combobox');
+      part.input.setAttribute('aria-autocomplete', 'list');
+      part.input.setAttribute('aria-controls', list.id);
+      part.input.setAttribute('aria-expanded', 'false');
+      part.input.placeholder = kind === 'chat' ? 'Search or type a model ID' : 'None: Voice stays off';
+    } else {
+      for (const name of ['role', 'aria-autocomplete', 'aria-controls', 'aria-expanded', 'aria-activedescendant']) {
+        part.input.removeAttribute(name);
+      }
+      part.input.placeholder = kind === 'chat' ? 'Model ID' : 'None: Voice stays off';
+    }
+    closeModelOptions(elements, kind);
+  }
   renderModelFields(elements, null, null);
 }
 
@@ -1143,10 +1415,11 @@ function selectOnFocus(input) {
 function fillFromPreset(elements, preset) {
   const prefillModels = preset.id === getDefaultPreset().id;
   elements.endpoint.input.value = preset.baseUrl;
+  elements.timeout.input.value = String(DEFAULT_ANSWER_TIMEOUT_SECONDS);
   elements.chatModel.input.value = prefillModels ? preset.chatModel : '';
   elements.transcriptionModel.input.value = prefillModels ? preset.transcriptionModel : '';
   filledPresetId = preset.id;
-  listedModels = null;
+  setListedModels(null);
 }
 
 /**
@@ -1156,10 +1429,11 @@ function fillFromPreset(elements, preset) {
  */
 function fillFromProvider(elements, settings) {
   elements.endpoint.input.value = settings.baseUrl;
+  elements.timeout.input.value = String(settings.timeoutSeconds);
   elements.chatModel.input.value = settings.chatModel;
   elements.transcriptionModel.input.value = settings.transcriptionModel;
   filledPresetId = settings.preset.id;
-  listedModels = null;
+  setListedModels(null);
 }
 
 /**
@@ -1192,6 +1466,7 @@ function renderConnectStep(elements) {
   elements.removeButton.hidden = setupState !== 'editing' || provider === null;
   renderEndpointField(elements, null);
   renderKeyField(elements, null);
+  renderTimeoutField(elements, null);
 }
 
 /**
@@ -1222,6 +1497,7 @@ function renderSetupActions(elements) {
  */
 function goToStep(elements, step, direction) {
   setupStep = step;
+  closeAllModelOptions(elements);
   elements.setupSteps.forEach((section, index) => {
     section.hidden = index + 1 !== step;
     if (index + 1 === step && direction !== 'none') {
@@ -1257,6 +1533,9 @@ function goToStep(elements, step, direction) {
  */
 function setProviderBusy(elements, busy) {
   providerBusy = busy;
+  if (busy) {
+    closeAllModelOptions(elements);
+  }
   elements.providerForm.toggleAttribute('data-busy', busy);
   for (const control of elements.providerForm.querySelectorAll('input, button')) {
     if (control instanceof HTMLInputElement || control instanceof HTMLButtonElement) {
@@ -1279,13 +1558,16 @@ function showProviderError(elements, result) {
   const message =
     result?.kind === 'error' && typeof result.message === 'string' ? result.message : 'Something went wrong. Try again.';
   const field = result?.kind === 'error' ? result.field : undefined;
-  if (field === 'key' || (field === 'endpoint' && asksForEndpoint(getPickedPreset(elements)))) {
+  if (field === 'key' || field === 'timeout' || (field === 'endpoint' && asksForEndpoint(getPickedPreset(elements)))) {
     if (setupStep !== 2) {
       goToStep(elements, 2, 'back');
     }
     if (field === 'key') {
       renderKeyField(elements, message);
       elements.key.input.focus();
+    } else if (field === 'timeout') {
+      renderTimeoutField(elements, message);
+      elements.timeout.input.focus();
     } else {
       renderEndpointField(elements, message);
       elements.endpoint.input.focus();
@@ -1365,6 +1647,11 @@ async function leaveConnectStep(elements) {
     elements.key.input.focus();
     return;
   }
+  if (readTimeout(elements) === null) {
+    renderTimeoutField(elements, TIMEOUT_ERROR);
+    elements.timeout.input.focus();
+    return;
+  }
   setProviderBusy(elements, true);
   const result = await sendProviderMessage({ type: MESSAGE_TYPES.PROVIDER_CHECK, provider: readConnection(elements) });
   setProviderBusy(elements, false);
@@ -1373,7 +1660,7 @@ async function leaveConnectStep(elements) {
     return;
   }
   const models = Array.isArray(result.models) ? result.models.filter((id) => typeof id === 'string' && isValidModel(id)) : [];
-  listedModels = models.length > 0 ? models : null;
+  setListedModels(models.length > 0 ? models : null, getPickedPreset(elements));
   goToStep(elements, 3, 'forward');
 }
 
@@ -1394,10 +1681,15 @@ async function finishSetup(elements) {
     (chatError !== null ? elements.chatModel.input : elements.transcriptionModel.input).focus();
     return;
   }
+  const timeoutSeconds = readTimeout(elements);
+  if (timeoutSeconds === null) {
+    showProviderError(elements, { kind: 'error', message: TIMEOUT_ERROR, field: 'timeout' });
+    return;
+  }
   setProviderBusy(elements, true);
   const result = await sendProviderMessage({
     type: MESSAGE_TYPES.PROVIDER_SAVE,
-    provider: { ...readConnection(elements), chatModel, transcriptionModel },
+    provider: { ...readConnection(elements), timeoutSeconds, chatModel, transcriptionModel },
   });
   if (result?.kind !== 'saved') {
     setProviderBusy(elements, false);
@@ -1600,20 +1892,120 @@ function renderProviderChoices(elements) {
   );
 }
 
+/**
+ * A model field as a combobox with list autocomplete, like the language field,
+ * while the provider listed models it can offer: a click shows the first
+ * suggestions (the model in the field first), typing suggests matching models
+ * (the first one highlighted), the arrow keys move the highlight, Enter or a
+ * click puts the highlighted model in the field, Esc or leaving the field
+ * closes the list. Unlike a language, any model ID may be typed: leaving the
+ * field keeps the text as typed.
+ * @param {PanelElements} elements
+ * @param {ModelKind} kind
+ */
+function bindModelField(elements, kind) {
+  const { part, list } = getModelField(elements, kind);
+  const box = getRequiredPart(part.field, '.text-field-box', HTMLElement);
+  const offered = () => part.field.hasAttribute('data-listed') && !part.input.disabled;
+  const isOpen = () => modelLists[kind].options.length > 0;
+  /** Opens the suggestions; the field's note waits until they close. */
+  const open = (/** @type {string} */ text, /** @type {number} */ highlight) => {
+    showModelSuggestions(elements, kind, text, highlight);
+    renderModelFields(elements, null, null);
+  };
+  /** Closes the suggestions, then shows the field's note when the model typed is not listed. */
+  const close = () => {
+    if (isOpen()) {
+      closeModelOptions(elements, kind);
+      renderModelFields(elements, null, null);
+    }
+  };
+
+  part.input.addEventListener('input', () => {
+    if (offered()) {
+      const text = part.input.value;
+      open(text, text.trim() === '' ? -1 : 0);
+    } else {
+      renderModelFields(elements, null, null);
+    }
+  });
+  // A click on the arrow or an icon keeps the focus in the field (leaving it would close the list first).
+  box.addEventListener('mousedown', (event) => {
+    if (offered() && event.target !== part.input) {
+      event.preventDefault();
+    }
+  });
+  // A click anywhere on the field shows the first suggestions, as on the language field.
+  box.addEventListener('click', (event) => {
+    if (!offered()) {
+      return;
+    }
+    if (event.target !== part.input) {
+      part.input.focus();
+    }
+    if (!isOpen()) {
+      open('', -1);
+    }
+  });
+  part.input.addEventListener('keydown', (event) => {
+    if (!offered()) {
+      return;
+    }
+    const state = modelLists[kind];
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const down = event.key === 'ArrowDown';
+      if (!isOpen()) {
+        open('', down ? 0 : MAX_MODEL_SUGGESTIONS);
+        return;
+      }
+      const count = state.options.length;
+      state.highlight = state.highlight < 0 ? (down ? 0 : count - 1) : (state.highlight + (down ? 1 : count - 1)) % count;
+      renderModelHighlight(elements, kind);
+    } else if (event.key === 'Enter' && isOpen()) {
+      // Enter in an open list picks (or only closes it); the next one goes on.
+      event.preventDefault();
+      if (state.highlight >= 0) {
+        pickModelOption(elements, kind, state.highlight);
+      } else {
+        close();
+      }
+    } else if (event.key === 'Escape' && isOpen()) {
+      // Closes only the list, not the setup.
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
+  });
+  part.input.addEventListener('blur', close);
+
+  // Keeps the focus in the field, so a click on a model is not leaving it first.
+  list.addEventListener('mousedown', (event) => event.preventDefault());
+  list.addEventListener('click', (event) => {
+    const option = event.target instanceof Element ? event.target.closest('.model-option') : null;
+    if (option instanceof HTMLElement) {
+      pickModelOption(elements, kind, Number(option.dataset.index));
+    }
+  });
+}
+
 /** @param {PanelElements} elements */
 function bindProvider(elements) {
   renderProviderChoices(elements);
   elements.endpoint.input.maxLength = MAX_ENDPOINT_LENGTH;
   elements.key.input.maxLength = MAX_API_KEY_LENGTH;
+  elements.timeout.input.min = String(MIN_ANSWER_TIMEOUT_SECONDS);
+  elements.timeout.input.max = String(MAX_ANSWER_TIMEOUT_SECONDS);
   elements.chatModel.input.maxLength = MAX_MODEL_LENGTH;
   elements.transcriptionModel.input.maxLength = MAX_MODEL_LENGTH;
 
-  for (const part of [elements.chatModel, elements.transcriptionModel]) {
-    part.input.addEventListener('input', () => renderModelFields(elements, null, null));
+  for (const kind of MODEL_KINDS) {
+    bindModelField(elements, kind);
   }
-  for (const part of [elements.endpoint, elements.key, elements.chatModel, elements.transcriptionModel]) {
+  for (const part of [elements.endpoint, elements.key, elements.timeout, elements.chatModel, elements.transcriptionModel]) {
     selectOnFocus(part.input);
   }
+  elements.timeout.input.addEventListener('input', () => renderTimeoutField(elements, null));
 
   // Double-clicking a provider is picking it and going on.
   elements.providerChoices.addEventListener('dblclick', (event) => {

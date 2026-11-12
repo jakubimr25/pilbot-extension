@@ -15,122 +15,85 @@
   <a href="LICENSE">License</a>
 </p>
 
-## Made with AI
-
-AI tools were used to build this project, including writing its code and documentation.
-
 ## Features
 
-- **Ask** – select a question on any page (two words or more) and click the speech-bubble button next to it, or
-  press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> (<kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> on a Mac).
+- **Ask** – select a question on a page and click the speech-bubble button next to it, or press
+  <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> (<kbd>Option</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> on a Mac).
   A short answer shows in the bottom-left corner.
-- **Summarize** – on pages with enough text, a small bar at the top gives you a summary in 2–3 sentences.
-- **Dictate** – a microphone button under text fields types what you say. Off until you turn it on; needs a
-  provider with speech-to-text.
-- **Knowledge** – up to 5,000 characters of your own notes (who you are, what you study, the language you want),
-  sent with every question while it's switched on.
-- **AI language** – the language answers and dictation use, or Automatic.
-- A Material 3 side panel in light and dark, following Chrome or your choice.
+- **Summarize** – on pages with enough text, a bar at the top gives a summary in 2–3 sentences.
+- **Dictate** – a microphone button under text fields types what you say. Off until you turn it on.
+- **Knowledge** – up to 5,000 characters of your own notes, sent with every question while it's on.
+- **AI language** – the language of answers and dictation, or Automatic.
 
-## Supported providers
+## How it works
 
-Pilbot works with any OpenAI-compatible API. Setup offers these presets:
+Pilbot calls any OpenAI-compatible API with your own key. The side panel sets it up in three steps:
 
-| Provider | Voice (speech-to-text) | API key |
-|---|---|---|
-| Groq (default) | ✓ | required |
-| OpenAI | ✓ | required |
-| Mistral | ✓ | required |
-| OpenRouter | – | required |
-| Google Gemini | – | required |
-| DeepSeek | – | required |
-| Ollama, LM Studio (on your computer) | – | not needed |
-| Custom: any OpenAI-compatible endpoint | if it has one | required, except on `localhost` |
+1. **Provider** – Groq, OpenAI, OpenRouter, Google Gemini, Mistral, DeepSeek, Ollama or LM Studio on your
+   computer, or any other OpenAI-compatible endpoint.
+2. **API key and answer timeout** – Pilbot checks the key with the provider. The timeout is how long it waits
+   for an answer: 45 seconds unless you change it (10–240).
+3. **Models** – pick a chat model from the provider's list or type its ID. A speech-to-text model is optional
+   and turns on dictation (Groq, OpenAI, Mistral, or a custom endpoint that has one).
 
-Groq comes with its models filled in; for the other providers you type the model IDs during setup.
+You can change all of it later in the side panel: Settings → Edit provider.
 
 ## Install
 
 Pilbot isn't in the Chrome Web Store; you load it yourself. It needs Google Chrome 123 or newer on a computer.
 
 1. Download the ZIP from [Releases](https://github.com/jakubimr25/pilbot-extension/releases/latest) or
-   [pilbot.pages.dev](https://pilbot.pages.dev) and unzip it, or clone this repository.
+   [pilbot.pages.dev](https://pilbot.pages.dev) and unzip it.
 2. Open `chrome://extensions` and turn on **Developer mode** (top right).
 3. Click **Load unpacked** and pick the folder that contains `manifest.json`.
-4. Pin Pilbot from the puzzle-piece menu and click its icon. The side panel opens with a three-step setup:
-   provider → API key → models.
+4. Pin Pilbot from the puzzle-piece menu and click its icon to open the setup.
 
 Keep the folder where it is: Chrome loads Pilbot from it. To update, replace the files in that folder and click ↻
 next to Pilbot on `chrome://extensions`. Your settings and key stay.
 
 ## Privacy and security
 
-- **No Pilbot server.** Requests go straight from your browser to the provider you set up, and only when you use a
-  feature: the selected text (plus your Knowledge notes, if on), the page title and readable text for a summary, or
-  the recorded audio for dictation.
-- **Your key stays on your device**, encrypted with AES-256-GCM. The encryption key is a non-extractable WebCrypto
-  key in the extension's own storage, and each encrypted key is bound to the endpoint it was saved for, so it can't
-  be sent anywhere else.
+- **No Pilbot server.** Requests go straight from your browser to your provider, and only when you use a feature.
+- **Your key stays on your device**, encrypted (AES-256-GCM), and is only ever sent to the endpoint it was saved
+  for.
 - **HTTPS only** (plain HTTP only to `localhost`), redirects refused, no cookies, no analytics, no remote code.
-- **Web pages can't drive Pilbot.** Its buttons sit in a closed shadow root and react only to real clicks; only the
-  side panel can save or remove the key.
+- **Web pages can't control Pilbot.** Only the side panel can save or remove the key.
 - Text in form fields, passwords, card numbers and one-time codes are never sent. The microphone is on only while
-  the button is red (the toolbar icon shows "rec"), for 2 minutes at most.
+  you dictate, for 2 minutes at most.
 
-The details are in the [privacy policy](https://pilbot.pages.dev/privacy). Use a separate API key for Pilbot and
-set a spending limit at your provider if it offers one.
-
-### Permissions
+Use a separate API key for Pilbot and set a spending limit at your provider if it offers one. Details are in the
+[privacy policy](https://pilbot.pages.dev/privacy).
 
 | Permission | Why |
 |---|---|
 | `storage` | Settings, your Knowledge notes and the encrypted key. |
 | `sidePanel` | The panel with setup and settings. |
-| `scripting` | Adds Pilbot's buttons to tabs that were already open when it was installed. |
-| `offscreen` | Records the microphone while you dictate (the background worker can't use it directly). |
-| Access to all `http` and `https` sites | Shows the buttons on pages, and lets Pilbot call the provider endpoint you chose. |
-
-## Project structure
-
-Plain JavaScript modules: no build step, no dependencies.
-
-| File | Role |
-|---|---|
-| `manifest.json` | Manifest V3. |
-| `background.js` | Service worker: routes messages (each type from one sender only), rate limits, recording. |
-| `provider.js`, `secret-store.js` | Checks, saves and removes the provider; encrypts the key. |
-| `openai.js`, `ai.js`, `prompts.js` | OpenAI-compatible client; questions, summaries and transcription; system prompts. |
-| `content.js` | The buttons and answer boxes on web pages. |
-| `sidepanel.html`, `sidepanel.js`, `styles.css` | The side panel: setup, features and settings. |
-| `offscreen.html`, `offscreen.js` | The microphone recorder. |
-| `microphone.html`, `microphone.js` | The page that asks for microphone permission. |
-| `constants.js` | Shared constants, provider presets and validation. |
+| `scripting` | Adds Pilbot's buttons to tabs that were open before it was installed. |
+| `offscreen` | Records the microphone while you dictate. |
+| Access to all `http` and `https` sites | Shows the buttons on pages and calls the provider you chose. |
 
 ## Development
 
-Load the folder unpacked (see [Install](#install)), edit, then click ↻ on `chrome://extensions` and reopen the side
-panel. Design notes, data flows and the reasoning behind the security choices are in
-[DEVELOPMENT.md](DEVELOPMENT.md) (in Slovak).
+Plain JavaScript modules: no build step, no dependencies. Load the folder unpacked, edit, then click ↻ on
+`chrome://extensions` and reopen the side panel.
 
-### Releases
+To release a version:
 
 1. Set the same new version in `manifest.json`, `LICENSE` and `THIRD-PARTY-NOTICES.txt`, and push to `main`.
 2. On GitHub, open **Actions → Release → Run workflow**.
 
-The [workflow](.github/workflows/release.yml) builds `pilbot-<version>.zip`, signs where it was built (a build
-provenance attestation) and publishes it as an immutable release tagged `v<version>`: neither the ZIP nor the tag can
-change afterwards. Anyone can check that a ZIP was built here with the [GitHub CLI](https://cli.github.com):
+The [workflow](.github/workflows/release.yml) publishes `pilbot-<version>.zip` as an immutable release tagged
+`v<version>`, with a build provenance attestation. To check that a ZIP was built here:
 
 ```bash
-gh attestation verify pilbot-1.0.0.zip --repo jakubimr25/pilbot-extension
+gh attestation verify pilbot-<version>.zip --repo jakubimr25/pilbot-extension
 ```
 
 ## License
 
-Pilbot is free for **personal, non-commercial use** under the [Pilbot License](LICENSE): you may use it and share
-unchanged copies free of charge, but not sell it or use it commercially. It's source-available, not open source.
+Free for **personal, non-commercial use** under the [Pilbot License](LICENSE): you may use it and share unchanged
+copies free of charge, but not sell it or use it commercially. It's source-available, not open source. The icons
+are Material Symbols by Google, under the Apache License 2.0 ([THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)).
 
-The icons are Material Symbols by Google, under the Apache License 2.0; see
-[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
-
-AI answers, summaries and transcriptions can be wrong. Pilbot is provided as is, without warranty.
+AI tools were used to build this project, including its code and documentation. AI answers, summaries and
+transcriptions can be wrong. Pilbot is provided as is, without warranty.

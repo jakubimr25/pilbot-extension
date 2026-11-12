@@ -7,8 +7,9 @@
  * secret.
  *
  * Storage (chrome.storage.local, locked to trusted contexts, never synced):
- * - STORAGE_KEYS.PROVIDER: endpoint, models, whether a key is saved and its
- *   last 4 characters (StoredProvider). Not secret.
+ * - STORAGE_KEYS.PROVIDER: endpoint, models, how long to wait for answers,
+ *   whether a key is saved and its last 4 characters (StoredProvider). Not
+ *   secret.
  * - STORAGE_KEYS.PROVIDER_SECRET: the API key, encrypted (secret-store.js)
  *   and bound to the endpoint's origin.
  *
@@ -21,13 +22,17 @@
  */
 
 import {
+  DEFAULT_ANSWER_TIMEOUT_SECONDS,
   STORAGE_KEYS,
   checkEndpoint,
+  isValidAnswerTimeout,
   isValidApiKey,
   isValidModel,
+  MAX_ANSWER_TIMEOUT_SECONDS,
   MAX_API_KEY_LENGTH,
   MAX_ENDPOINT_LENGTH,
   MAX_MODEL_LENGTH,
+  MIN_ANSWER_TIMEOUT_SECONDS,
   parseProviderSettings,
 } from './constants.js';
 import { listModels } from './openai.js';
@@ -38,7 +43,7 @@ import { decryptSecret, encryptSecret, forgetEncryptionKey } from './secret-stor
 /** @typedef {import('./constants.js').ProviderResult} ProviderResult */
 /** @typedef {import('./constants.js').StoredProvider} StoredProvider */
 /** @typedef {import('./openai.js').Connection} Connection */
-/** @typedef {'endpoint' | 'key' | 'chatModel' | 'transcriptionModel'} ProviderField */
+/** @typedef {'endpoint' | 'key' | 'timeout' | 'chatModel' | 'transcriptionModel'} ProviderField */
 /** @typedef {{ ok: true, baseUrl: string, origin: string, local: boolean }} ValidEndpoint */
 
 /** How long the check of a new provider may take. */
@@ -110,21 +115,30 @@ export async function getProviderConnection() {
 }
 
 /**
- * What the side panel sent: exactly these fields, all strings within bounds.
- * The models are left out of a check (PROVIDER_CHECK) and read as ''.
+ * What the side panel sent: exactly these fields, strings within bounds and
+ * the timeout a number (checked with the other fields when saving). The
+ * models and the timeout are left out of a check (PROVIDER_CHECK): the models
+ * are read as '', the timeout as the default.
  * @param {unknown} raw
- * @returns {{ baseUrl: string, apiKey: string, chatModel: string, transcriptionModel: string } | null}
+ * @returns {{ baseUrl: string, apiKey: string, chatModel: string, transcriptionModel: string, timeoutSeconds: number } | null}
  */
 function readInput(raw) {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return null;
   }
-  const { baseUrl, apiKey, chatModel = '', transcriptionModel = '' } = /** @type {Record<string, unknown>} */ (raw);
+  const {
+    baseUrl,
+    apiKey,
+    chatModel = '',
+    transcriptionModel = '',
+    timeoutSeconds = DEFAULT_ANSWER_TIMEOUT_SECONDS,
+  } = /** @type {Record<string, unknown>} */ (raw);
   if (
     typeof baseUrl !== 'string' ||
     typeof apiKey !== 'string' ||
     typeof chatModel !== 'string' ||
     typeof transcriptionModel !== 'string' ||
+    typeof timeoutSeconds !== 'number' ||
     baseUrl.length > MAX_ENDPOINT_LENGTH * 2 ||
     apiKey.length > MAX_API_KEY_LENGTH * 2 ||
     chatModel.length > MAX_MODEL_LENGTH * 2 ||
@@ -132,7 +146,13 @@ function readInput(raw) {
   ) {
     return null;
   }
-  return { baseUrl, apiKey: apiKey.trim(), chatModel: chatModel.trim(), transcriptionModel: transcriptionModel.trim() };
+  return {
+    baseUrl,
+    apiKey: apiKey.trim(),
+    chatModel: chatModel.trim(),
+    transcriptionModel: transcriptionModel.trim(),
+    timeoutSeconds,
+  };
 }
 
 /**
@@ -272,6 +292,9 @@ async function runSave(raw) {
   if (input.transcriptionModel !== '' && !isValidModel(input.transcriptionModel)) {
     return error('Enter the model ID without spaces, or leave it empty.', 'transcriptionModel');
   }
+  if (!isValidAnswerTimeout(input.timeoutSeconds)) {
+    return error(`Enter whole seconds, from ${MIN_ANSWER_TIMEOUT_SECONDS} to ${MAX_ANSWER_TIMEOUT_SECONDS}.`, 'timeout');
+  }
   const resolved = await resolveConnection(input.baseUrl, input.apiKey);
   if (!resolved.ok) {
     return resolved.result;
@@ -293,6 +316,7 @@ async function runSave(raw) {
     transcriptionModel: input.transcriptionModel,
     hasKey: apiKey !== '',
     keyHint: apiKey.length >= MIN_KEY_LENGTH_FOR_HINT ? apiKey.slice(-4) : '',
+    timeoutSeconds: input.timeoutSeconds,
   };
   if (apiKey === '') {
     await chrome.storage.local.set({ [STORAGE_KEYS.PROVIDER]: provider });

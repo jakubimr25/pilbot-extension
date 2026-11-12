@@ -40,10 +40,13 @@ const TEMPERATURE = 0.2;
 const REASONING_MAX_COMPLETION_TOKENS = 2048;
 /**
  * Models that think before answering and accept `reasoning_effort` (OpenAI's
- * gpt-oss on Groq, OpenRouter, Ollama…; OpenAI's o-series and GPT-5). "low"
- * keeps their answers fast; others would reject the parameter.
+ * gpt-oss on Groq, OpenRouter, Ollama…; OpenAI's o-series and GPT-5; Google's
+ * Gemini from 2.5 on, also "gemini-flash-latest" and "google/gemini-…" on
+ * OpenRouter). "low" keeps their answers fast: Gemini otherwise thinks at its
+ * default level, which can take longer than the timeout. Others would reject
+ * the parameter; one that does anyway gets the next format (chatProfilesFor()).
  */
-const REASONING_MODEL_PATTERN = /gpt-oss|(?:^|[/:])(?:o[1-9](?:-|$)|gpt-5)/i;
+const REASONING_MODEL_PATTERN = /gpt-oss|gemini-(?!1\.|2\.0)|(?:^|[/:])(?:o[1-9](?:-|$)|gpt-5)/i;
 /**
  * Error codes that mean the input itself was refused (too long, filtered):
  * asking again in another format cannot help.

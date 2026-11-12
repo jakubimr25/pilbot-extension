@@ -585,6 +585,24 @@ body[data-setup="editing"] .setup-bar-logo {
   display: none;
 }
 
+/* Material suffix text (the timeout's unit), in the supporting color after the value. */
+.text-field-suffix {
+  flex: none;
+  padding-right: 16px;
+  color: var(--on-surface-variant);
+}
+
+/* Numbers are typed (or changed with the arrow keys): no spin buttons. */
+.text-field-input[type="number"] {
+  appearance: textfield;
+}
+
+.text-field-input[type="number"]::-webkit-inner-spin-button,
+.text-field-input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
 /* "Get an API key" and "Remove saved key": text buttons whose container (shown on hover) starts at
    the fields' left edge, so it never sticks out past them. */
 .setup-links {
@@ -592,6 +610,50 @@ body[data-setup="editing"] .setup-bar-logo {
   flex-wrap: wrap;
   gap: 4px 8px;
   margin: -8px 0 0;
+}
+
+/* The timeout after those buttons, as far from them as the fields are from each other. */
+.setup-links + .text-field {
+  margin-top: 20px;
+}
+
+/* ---------- Step 3: the models ---------- */
+
+/* Step 3 has no supporting text: its first field sits where that text would end. */
+.setup-headline + .text-field {
+  margin-top: 24px;
+}
+
+/* A model field with the provider's models: a combobox like the language field in settings, whose
+   suggestions join it as connected list items (styled with the language list, below). The arrow
+   shows only while there are models to suggest; the corners next to the list turn small. */
+.model-field[data-listed] .text-field-box {
+  cursor: pointer;
+}
+
+.model-field .text-field-box {
+  transition:
+    box-shadow var(--motion-standard),
+    border-radius var(--motion-spring);
+}
+
+.model-field-arrow {
+  flex: none;
+  margin-right: 12px;
+  transition: transform var(--motion-standard);
+}
+
+.model-field:not([data-listed]) .model-field-arrow {
+  display: none;
+}
+
+.model-field:has([aria-expanded="true"]) .model-field-arrow {
+  transform: rotate(180deg);
+}
+
+.model-field:has([aria-expanded="true"]) .text-field-box {
+  border-end-start-radius: 4px;
+  border-end-end-radius: 4px;
 }
 
 /* ---------- Errors and actions ---------- */
@@ -1529,7 +1591,10 @@ button.segment-face:focus-visible {
   opacity: 1;
 }
 
-.language-list {
+/* The suggestions of the language field and of the setup's model fields: at most five connected
+   list items under the field, 2 px apart like the field and its list. */
+.language-list,
+.model-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 2px;
@@ -1538,9 +1603,10 @@ button.segment-face:focus-visible {
   list-style: none;
 }
 
-/* Material menu item: the name in its own language, lined up with the field's text, and its English
-   name at the end. */
-.language-option {
+/* Material menu item: the text lined up with the field's (a language's name in its own language, with
+   its English name at the end; a model ID). */
+.language-option,
+.model-option {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1551,19 +1617,38 @@ button.segment-face:focus-visible {
   cursor: pointer;
 }
 
-.language-option:last-child {
+:is(.language-option, .model-option):last-child {
   border-end-start-radius: var(--shape-large);
   border-end-end-radius: var(--shape-large);
 }
 
-.language-option:hover {
+:is(.language-option, .model-option):hover {
   background-image: var(--hover-layer);
 }
 
-/* Highlighted while typing or with the arrow keys: Enter or leaving the field picks it. */
-.language-option[aria-selected="true"] {
+/* Highlighted while typing or with the arrow keys: Enter picks it (leaving the language field too). */
+:is(.language-option, .model-option)[aria-selected="true"] {
   background-color: var(--secondary-container);
   color: var(--on-secondary-container);
+}
+
+/* Forced colors drop the highlight's background, so it needs a line there. */
+@media (forced-colors: active) {
+  :is(.language-option, .model-option)[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+/* In the setup, the list sits 2 px under its field, in the field's color, and a long ID wraps. */
+.model-list {
+  margin-top: 2px;
+}
+
+.model-option {
+  padding-block: 12px;
+  background-color: var(--surface-container-highest);
+  overflow-wrap: anywhere;
 }
 
 .language-name {
@@ -1751,7 +1836,8 @@ button.segment-face:focus-visible {
   .track,
   .track::after,
   .language-field,
-  .language-field .list-item-trailing {
+  .language-field .list-item-trailing,
+  .model-field-arrow {
     transition: none;
   }
 

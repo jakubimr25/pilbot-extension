@@ -22,8 +22,11 @@ import { getProviderConnection } from './provider.js';
 /** @typedef {import('./openai.js').Connection} Connection */
 /** @typedef {import('./openai.js').Failure} Failure */
 
-/** Per attempt. Local models on a laptop can be slow; hosted ones answer in seconds. */
-const CHAT_TIMEOUT_MS = 45_000;
+/**
+ * Dictation's wait, per attempt. Answers and summaries wait as long as the
+ * user set with the provider (ProviderSettings.timeoutSeconds): local models
+ * on a laptop and thinking models can be slow, others answer in seconds.
+ */
 const TRANSCRIPTION_TIMEOUT_MS = 60_000;
 /** Most tokens the model may write: room for a short reasoning plus the 2-3 sentences asked for. */
 const ANSWER_MAX_TOKENS = 1024;
@@ -54,7 +57,8 @@ export const VOICE_NOT_SET_UP = Object.freeze({
 
 /**
  * The provider with its key, or the message to show instead.
- * @returns {Promise<{ kind: 'ready', connection: Connection, chatModel: string, transcriptionModel: string } | ErrorResult>}
+ * @returns {Promise<{ kind: 'ready', connection: Connection, chatModel: string, transcriptionModel: string,
+ *   chatTimeoutMs: number } | ErrorResult>}
  */
 async function connect() {
   const provider = await getProviderConnection();
@@ -69,6 +73,7 @@ async function connect() {
     connection: provider.connection,
     chatModel: provider.settings.chatModel,
     transcriptionModel: provider.settings.transcriptionModel,
+    chatTimeoutMs: provider.settings.timeoutSeconds * 1000,
   };
 }
 
@@ -109,7 +114,13 @@ function describeFailure(failure, feature, timeoutMs) {
   const settings = feature === 'voice' ? 'the speech-to-text model' : 'the model';
   switch (failure.kind) {
     case 'timeout':
-      return { kind: 'error', message: `No answer from your AI provider within ${timeoutMs / 1000} seconds. Try again.` };
+      return {
+        kind: 'error',
+        message:
+          feature === 'voice'
+            ? `No answer from your AI provider within ${timeoutMs / 1000} seconds. Try again.`
+            : `No answer from your AI provider within ${timeoutMs / 1000} seconds. Try again, or allow more time: Settings → Edit provider.`,
+      };
     case 'network':
       return { kind: 'error', message: 'Could not reach your AI provider. Check your connection and try again.' };
     case 'invalid':
@@ -222,13 +233,13 @@ async function complete(messages, maxTokens, cancelSignal) {
     provider.connection,
     { model: provider.chatModel, messages, maxTokens },
     cancelSignal,
-    CHAT_TIMEOUT_MS,
+    provider.chatTimeoutMs,
   );
   if (cancelSignal.aborted) {
     return IGNORED;
   }
   if (!result.ok) {
-    return describeFailure(result.failure, 'chat', CHAT_TIMEOUT_MS);
+    return describeFailure(result.failure, 'chat', provider.chatTimeoutMs);
   }
   const text = cleanAnswer(result.value.content);
   if (text === '') {

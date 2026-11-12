@@ -405,6 +405,25 @@ export function isValidModel(model) {
   return model.length <= MAX_MODEL_LENGTH && PRINTABLE_ASCII.test(model);
 }
 
+/** How long Pilbot waits for an answer or a summary, in whole seconds, unless the setup sets another time. */
+export const DEFAULT_ANSWER_TIMEOUT_SECONDS = 45;
+export const MIN_ANSWER_TIMEOUT_SECONDS = 10;
+/** Well under the 5 minutes Chrome gives the background worker for one message. */
+export const MAX_ANSWER_TIMEOUT_SECONDS = 240;
+
+/**
+ * @param {unknown} value
+ * @returns {value is number} Whether it is a time to wait for answers: whole seconds, 10–240.
+ */
+export function isValidAnswerTimeout(value) {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_ANSWER_TIMEOUT_SECONDS &&
+    value <= MAX_ANSWER_TIMEOUT_SECONDS
+  );
+}
+
 /**
  * The provider as stored under STORAGE_KEYS.PROVIDER. Nothing in it is secret.
  * @typedef {object} StoredProvider
@@ -414,6 +433,8 @@ export function isValidModel(model) {
  * @property {string} transcriptionModel '' when Voice has no model.
  * @property {boolean} hasKey Whether an encrypted API key is stored (PROVIDER_SECRET).
  * @property {string} keyHint The key's last 4 characters, to recognize it ('' for short keys or none).
+ * @property {number} timeoutSeconds How long to wait for an answer or a summary (isValidAnswerTimeout()).
+ *   Providers saved before it existed have none: they are read with the default.
  */
 
 /**
@@ -433,7 +454,8 @@ export function parseProviderSettings(value) {
   if (typeof value !== 'object' || value === null) {
     return null;
   }
-  const { v, baseUrl, chatModel, transcriptionModel, hasKey, keyHint } = /** @type {Record<string, unknown>} */ (value);
+  const { v, baseUrl, chatModel, transcriptionModel, hasKey, keyHint, timeoutSeconds } =
+    /** @type {Record<string, unknown>} */ (value);
   const endpoint = checkEndpoint(baseUrl);
   if (
     v !== 1 ||
@@ -457,6 +479,7 @@ export function parseProviderSettings(value) {
     transcriptionModel,
     hasKey,
     keyHint: hasKey ? keyHint : '',
+    timeoutSeconds: isValidAnswerTimeout(timeoutSeconds) ? timeoutSeconds : DEFAULT_ANSWER_TIMEOUT_SECONDS,
     origin: endpoint.origin,
     local: endpoint.local,
     preset: findPresetByBaseUrl(endpoint.baseUrl),
@@ -472,7 +495,7 @@ export function parseProviderSettings(value) {
  * @typedef {{ kind: 'checked', models: string[] | null }
  *   | { kind: 'saved', notice: string }
  *   | { kind: 'removed' }
- *   | { kind: 'error', message: string, field?: 'endpoint' | 'key' | 'chatModel' | 'transcriptionModel' }} ProviderResult
+ *   | { kind: 'error', message: string, field?: 'endpoint' | 'key' | 'timeout' | 'chatModel' | 'transcriptionModel' }} ProviderResult
  */
 
 // -----------------------------------------------------------------------------

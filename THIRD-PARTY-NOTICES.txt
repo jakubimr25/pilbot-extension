@@ -1,4 +1,4 @@
-Third-party notices for Pilbot 1.0.0
+Third-party notices for Pilbot 1.1.0
 ====================================
 
 Pilbot includes the following third-party material. It remains under its
